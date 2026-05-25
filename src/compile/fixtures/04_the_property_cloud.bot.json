@@ -1,0 +1,188 @@
+{
+  "id": "00000000-0000-0000-0000-000000000004",
+  "agency_id": "00000000-0000-0000-0000-0000000000aa",
+  "client_id": "00000000-0000-0000-0000-0000000000ee",
+
+  "internal_name": "The Property Cloud Inbound",
+  "business_name": "The Property Cloud",
+  "business_address": "Kent and South-East London",
+  "industry": "Estate agency",
+  "language": "en-GB",
+  "working_hours": {
+    "mon": { "open": "09:00", "close": "18:00" },
+    "tue": { "open": "09:00", "close": "18:00" },
+    "wed": { "open": "09:00", "close": "18:00" },
+    "thu": { "open": "09:00", "close": "18:00" },
+    "fri": { "open": "09:00", "close": "18:00" },
+    "sat": { "open": "10:00", "close": "16:00" }
+  },
+  "timezone": "Europe/London",
+  "out_of_hours_behavior": "answer_normally",
+
+  "agent_name": "TPC Assistant",
+  "voice_id": "Gv42yFG3G6CHLsU5y8g6",
+  "tone_chips": ["Warm", "Professional", "Friendly"],
+  "opening_line": "Thank you for calling The Property Cloud, you're speaking with the TPC Assistant. How can I help you today?",
+  "conversation_rules": {
+    "one_question_at_a_time": true,
+    "max_sentences_per_response": 2,
+    "ai_disclosure_response": "I am a virtual assistant",
+    "rotate_phrases_no_repeat_within_turns": 3
+  },
+  "pronunciation_rules": {
+    "spell_phone_digit_by_digit": true,
+    "spell_email_aloud": true,
+    "phonetic_url": true
+  },
+
+  "services": [
+    { "name": "Sales enquiry" },
+    { "name": "Lettings enquiry" },
+    { "name": "Valuation request" },
+    { "name": "Surveyor scheduling" }
+  ],
+
+  "faqs": [],
+
+  "hard_guardrails": [
+    "Do not attempt live availability checks; be transparent: 'I can't check the website live during this call, but I'll pass everything to the team'",
+    "Do not book viewings or valuations in a calendar",
+    "Do not say an appointment is confirmed — instead say 'one of the team will call you back to confirm and schedule'",
+    "Do not give financial or legal advice",
+    "Be courteous; if the caller is abusive, warn once and end the call politely",
+    "Data minimisation: only ask what is needed to route the call properly",
+    "Do not read back the full email address if the caller is in public; offer to spell if asked"
+  ],
+
+  "escalation_rules": [
+    { "trigger": "abusive behaviour", "action": "custom_response", "detail": "I'd like to keep this conversation respectful. If this continues I'll have to end the call." },
+    { "trigger": "request for live availability check", "action": "custom_response", "detail": "Just so you know, I can't check the website live during this call, but I'll pass everything to the team and they'll confirm details." }
+  ],
+
+  "website_url": null,
+
+  "transfer_enabled": false,
+  "transfer_number": null,
+  "transfer_triggers": null,
+  "transfer_pre_line": null,
+  "transfer_fallback": null,
+
+  "max_call_duration_s": 600,
+  "daily_minute_cap": 200,
+  "monthly_minute_cap": null,
+  "alert_recipients": [],
+
+  "twilio_phone_e164": "+441622123456",
+
+  "crm_status": "connected",
+  "crm_location_id": "loc_placeholder_property_cloud",
+
+  "booking_enabled": false,
+  "booking_calendar_id": null,
+  "booking_services": [],
+  "booking_lead_time_minutes": 120,
+  "booking_max_future_days": 30,
+  "booking_confirmation_message": null,
+  "booking_hours": null,
+
+  "custom_tools": [
+    {
+      "name": "send_registration_link",
+      "description": "Send the caller a self-registration link by SMS so they can complete their property preferences online and receive early alerts.",
+      "trigger": "after capturing the caller's essentials (name, email) and confirming their reason for calling",
+      "webhook_url": "https://platform.example.com/api/bots/{bot_id}/tools/send_registration_link",
+      "parameters": [
+        { "name": "phone_number", "type": "string", "description": "Caller's mobile number in E.164 format", "required": true },
+        { "name": "email", "type": "string", "description": "Caller's email address", "required": false }
+      ]
+    }
+  ],
+  "reason_branches": [
+    {
+      "name": "Sales / Lettings enquiry",
+      "match_keywords": ["sale", "sales", "buying", "purchase", "rent", "renting", "letting", "lettings", "tenant", "to let"],
+      "capture_fields": [
+        {
+          "name": "property_hint",
+          "ask": "What property are you interested in, or what are you looking for in terms of bedrooms, area, budget, and timescales?",
+          "required": true,
+          "timing": "early"
+        }
+      ]
+    },
+    {
+      "name": "Valuation request",
+      "match_keywords": ["valuation", "valuing", "value", "appraisal", "market appraisal"],
+      "capture_fields": [
+        { "name": "valuation_address", "ask": "What is the property address or postcode for the valuation?", "required": true, "timing": "early" },
+        { "name": "access_status", "ask": "Is the property owner-occupied, tenanted, or empty?", "required": true, "timing": "early" },
+        { "name": "valuation_timing", "ask": "Are you looking to arrange a valuation ASAP, this week, or are you flexible?", "required": true, "timing": "early" }
+      ]
+    },
+    {
+      "name": "Surveyor or third-party scheduling",
+      "match_keywords": ["surveyor", "survey", "inspection", "third party"],
+      "capture_fields": [
+        { "name": "org_name", "ask": "What company are you calling from?", "required": true, "timing": "early" },
+        { "name": "org_contact", "ask": "And your name?", "required": true, "timing": "early" },
+        { "name": "org_ref", "ask": "What is the purpose of the survey or your reference?", "required": true, "timing": "early" },
+        { "name": "org_address", "ask": "What is the property address?", "required": true, "timing": "early" },
+        { "name": "org_availability_notes", "ask": "When are you available, in broad terms?", "required": false, "timing": "early" }
+      ]
+    },
+    {
+      "name": "Other",
+      "match_keywords": [],
+      "capture_fields": [
+        {
+          "name": "other_reason",
+          "ask": "Could you briefly summarise what you'd like the team to help with?",
+          "required": true,
+          "timing": "early"
+        }
+      ]
+    }
+  ],
+
+  "capture_fields": [
+    {
+      "name": "caller_name",
+      "ask": "Can I take your name, please?",
+      "required": true,
+      "timing": "early"
+    },
+    {
+      "name": "caller_email",
+      "ask": "And the best email for updates?",
+      "required": true,
+      "timing": "early"
+    }
+  ],
+  "verify_capture_before_close": false,
+
+  "post_call_fields": [
+    { "name": "caller_name", "type": "text", "hint": "Caller's name (required)" },
+    { "name": "caller_email", "type": "text", "hint": "Caller's best email (required)" },
+    { "name": "caller_phone", "type": "text", "hint": "Caller's best phone number" },
+    { "name": "reason", "type": "select", "options": ["sales", "lettings", "valuation", "surveyor", "other"], "hint": "Primary reason for the call" },
+    { "name": "property_hint", "type": "text", "hint": "Property of interest or search brief (beds, area, budget, timescales) — sales/lettings only" },
+    { "name": "valuation_address", "type": "text", "hint": "Property address or postcode for valuation" },
+    { "name": "access_status", "type": "select", "options": ["owner_occupied", "tenanted", "empty"], "hint": "Occupancy status — valuations only" },
+    { "name": "valuation_timing", "type": "select", "options": ["asap", "this_week", "flexible"], "hint": "Valuation timing preference" },
+    { "name": "org_name", "type": "text", "hint": "Surveyor/third-party company name" },
+    { "name": "org_contact", "type": "text", "hint": "Surveyor/third-party contact person" },
+    { "name": "org_ref", "type": "text", "hint": "Surveyor purpose or reference" },
+    { "name": "org_address", "type": "text", "hint": "Property address for the surveyor visit" },
+    { "name": "org_availability_notes", "type": "text", "hint": "Surveyor's availability notes" },
+    { "name": "other_reason", "type": "text", "hint": "Free-text summary if reason is 'other'" },
+    { "name": "is_repeat_caller", "type": "boolean", "hint": "Was this a repeat caller whose details we already had?" }
+  ],
+  "save_audio": true,
+  "save_transcript": true,
+  "crm_workflow_id": "wf_property_enquiry_received",
+  "fallback_email_to": null,
+  "fallback_email_template": null,
+
+  "tier": "starter",
+  "status": "draft"
+}

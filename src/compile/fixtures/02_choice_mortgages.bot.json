@@ -1,0 +1,137 @@
+{
+  "id": "00000000-0000-0000-0000-000000000002",
+  "agency_id": "00000000-0000-0000-0000-0000000000aa",
+  "client_id": "00000000-0000-0000-0000-0000000000cc",
+
+  "internal_name": "Choice Mortgages Inbound",
+  "business_name": "Choice Mortgages",
+  "business_address": null,
+  "industry": "Mortgage broker",
+  "language": "en-GB",
+  "working_hours": {
+    "mon": { "open": "09:00", "close": "17:00" },
+    "tue": { "open": "09:00", "close": "17:00" },
+    "wed": { "open": "09:00", "close": "17:00" },
+    "thu": { "open": "09:00", "close": "17:00" },
+    "fri": { "open": "09:00", "close": "17:00" }
+  },
+  "timezone": "Europe/London",
+  "out_of_hours_behavior": "answer_normally",
+
+  "agent_name": "Emma",
+  "voice_id": "n3Vun1rdyiQUF5EqCtmC",
+  "tone_chips": ["Warm", "Professional", "Reassuring"],
+  "opening_line": "Good {{time_of_day}}, thank you for calling Choice Mortgages. My name is Emma, the virtual assistant. How can I help you today?",
+  "conversation_rules": {
+    "one_question_at_a_time": true,
+    "max_sentences_per_response": 2,
+    "ai_disclosure_response": "I am a virtual assistant",
+    "rotate_phrases_no_repeat_within_turns": 3
+  },
+  "pronunciation_rules": {
+    "spell_phone_digit_by_digit": true,
+    "spell_email_aloud": true,
+    "phonetic_url": true
+  },
+
+  "services": [
+    { "name": "First-time purchase" },
+    { "name": "Home moving mortgage" },
+    { "name": "Remortgage" },
+    { "name": "Buy-to-let" }
+  ],
+
+  "faqs": [],
+
+  "hard_guardrails": [
+    "Do not give financial advice",
+    "Do not quote mortgage rates or products",
+    "Do not make promises about approval",
+    "Do not pressure the customer",
+    "Do not skip the verification step at the end of the call",
+    "Always remain neutral and professional"
+  ],
+
+  "escalation_rules": [
+    { "trigger": "questions about specific mortgage rates", "action": "custom_response", "detail": "That is a great question — one of our advisers will go through that with you in detail." },
+    { "trigger": "complex financial advice questions", "action": "custom_response", "detail": "That is a great question — one of our advisers will go through that with you in detail." }
+  ],
+
+  "website_url": null,
+
+  "transfer_enabled": false,
+  "transfer_number": null,
+  "transfer_triggers": null,
+  "transfer_pre_line": null,
+  "transfer_fallback": null,
+
+  "max_call_duration_s": 900,
+  "daily_minute_cap": 300,
+  "monthly_minute_cap": null,
+  "alert_recipients": [],
+
+  "twilio_phone_e164": "+441234567890",
+
+  "crm_status": "connected",
+  "crm_location_id": "loc_placeholder_choice_mortgages",
+
+  "booking_enabled": true,
+  "booking_calendar_id": "cal_adviser_callbacks",
+  "booking_services": ["First-time purchase", "Home moving mortgage", "Remortgage", "Buy-to-let"],
+  "booking_lead_time_minutes": 120,
+  "booking_max_future_days": 14,
+  "booking_confirmation_message": "Perfect, an adviser will call you at the agreed time.",
+  "booking_hours": {
+    "mon": { "open": "09:00", "close": "17:00" },
+    "tue": { "open": "09:00", "close": "17:00" },
+    "wed": { "open": "09:00", "close": "17:00" },
+    "thu": { "open": "09:00", "close": "17:00" },
+    "fri": { "open": "09:00", "close": "17:00" }
+  },
+
+  "custom_tools": [],
+  "reason_branches": [],
+
+  "capture_fields": [
+    {
+      "name": "caller_full_name",
+      "ask": "Before I arrange that for you, may I take your full name please?",
+      "required": true,
+      "timing": "before_action"
+    },
+    {
+      "name": "caller_phone",
+      "ask": "And what's the best phone number for the adviser to reach you on?",
+      "required": true,
+      "timing": "before_action"
+    },
+    {
+      "name": "caller_email",
+      "ask": "And your email address?",
+      "required": true,
+      "timing": "before_action"
+    }
+  ],
+  "verify_capture_before_close": true,
+
+  "post_call_fields": [
+    { "name": "caller_full_name", "type": "text", "hint": "Caller's full name (required)" },
+    { "name": "caller_phone", "type": "text", "hint": "Best phone number for the adviser callback (required)" },
+    { "name": "caller_email", "type": "text", "hint": "Caller's email address (required)" },
+    { "name": "enquiry_type", "type": "select", "options": ["first_time_purchase", "moving_home", "remortgage", "buy_to_let", "other"], "hint": "Type of mortgage enquiry" },
+    { "name": "stage_in_process", "type": "select", "options": ["exploring", "decision_made", "offer_agreed"], "hint": "Where the caller is in their mortgage process" },
+    { "name": "urgency", "type": "select", "options": ["urgent", "soon", "exploring"], "hint": "How quickly the caller wants to act" },
+    { "name": "deposit_amount", "type": "text", "hint": "Deposit amount if mentioned" },
+    { "name": "borrowing_needs", "type": "text", "hint": "Borrowing amount needed if mentioned" },
+    { "name": "callback_preferred_time", "type": "text", "hint": "Caller's preferred callback date and time" },
+    { "name": "additional_notes", "type": "text", "hint": "Anything specific the adviser should know" }
+  ],
+  "save_audio": true,
+  "save_transcript": true,
+  "crm_workflow_id": "wf_new_mortgage_enquiry",
+  "fallback_email_to": null,
+  "fallback_email_template": null,
+
+  "tier": "starter",
+  "status": "draft"
+}

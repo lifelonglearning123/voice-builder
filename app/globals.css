@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --border: 220 13% 91%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --primary: 222 47% 11%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 217 91% 60%;
+
+  /* Wizard chrome */
+  --wizard-canvas: #fbfbfd;     /* Apple's signature warm white */
+  --wizard-rail: #e5e7eb;       /* hairline progress rail */
+  --wizard-ink: #0f172a;        /* slate-900 */
+  --wizard-mute: #64748b;       /* slate-500 */
+  --wizard-blue: #0071e3;       /* system blue, used sparingly */
+}
+
+body {
+  background-color: var(--wizard-canvas);
+  color: hsl(var(--foreground));
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI',
+    system-ui, ui-sans-serif, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-mono-tight {
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  font-feature-settings: 'tnum', 'zero';
+}
+
+/* ---------------------------------------------------------------------------
+ * Animations — wizard entry & step shell
+ * Restrained, Apple-style easing. Avoid bouncy springs.
+ * --------------------------------------------------------------------------- */
+
+@keyframes wizard-rail-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(var(--rail-progress, 0.09)); }
+}
+
+@keyframes wizard-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes wizard-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes orb-pulse {
+  0%, 100% { transform: scale(1);    opacity: 0.95; }
+  50%      { transform: scale(1.35); opacity: 1; }
+}
+
+@keyframes aurora-breathe {
+  0%, 100% { transform: scale(1);    opacity: 0.55; }
+  50%      { transform: scale(1.22); opacity: 0.9; }
+}
+
+/* Sonar rings — three concentric circles expand outward and fade,
+ * staggered so there's always at least one mid-pulse. */
+@keyframes ring-pulse {
+  0%   { transform: scale(0.35); opacity: 0.7; border-width: 1.5px; }
+  60%  { opacity: 0.25; }
+  100% { transform: scale(1.4);  opacity: 0;   border-width: 0.5px; }
+}
+
+@keyframes stage-enter {
+  0%   { opacity: 0; transform: translateY(6px); filter: blur(4px); }
+  100% { opacity: 1; transform: translateY(0);   filter: blur(0); }
+}
+
+@keyframes check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes check-ring-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Subtle inner gradient on the orb so it doesn't read as a flat dot */
+.wizard-orb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 30%, #1e293b 0%, #020617 70%, #000 100%);
+  box-shadow:
+    0 0 0 1px rgba(0, 113, 227, 0.15),
+    0 0 24px rgba(0, 113, 227, 0.35),
+    0 0 48px rgba(0, 113, 227, 0.2);
+  animation: orb-pulse 1.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+/* Expanding sonar rings around the orb */
+.wizard-ring {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 200px;
+  height: 200px;
+  margin: -100px 0 0 -100px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(0, 113, 227, 0.55);
+  animation: ring-pulse 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  pointer-events: none;
+}
+
+.wizard-ring--delay-1 { animation-delay: -0.8s; }
+.wizard-ring--delay-2 { animation-delay: -1.6s; }
+
+.wizard-aurora {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 280px;
+  height: 280px;
+  margin: -140px 0 0 -140px;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at center,
+    rgba(0, 113, 227, 0.32) 0%,
+    rgba(0, 113, 227, 0.12) 40%,
+    rgba(0, 113, 227, 0) 70%
+  );
+  filter: blur(8px);
+  animation: aurora-breathe 4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  pointer-events: none;
+}
+
+.wizard-stage {
+  animation: stage-enter 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.wizard-fade-up {
+  animation: wizard-fade-up 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.wizard-fade-in {
+  animation: wizard-fade-in 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.wizard-rail-bar {
+  transform-origin: left center;
+  animation: wizard-rail-fill 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.wizard-check path {
+  stroke-dasharray: 36;
+  stroke-dashoffset: 36;
+  animation: check-draw 700ms cubic-bezier(0.65, 0, 0.35, 1) 200ms forwards;
+}
+
+.wizard-check circle {
+  stroke-dasharray: 138;
+  stroke-dashoffset: 138;
+  animation: check-ring-draw 800ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+/* Warm aurora — used on the celebration moment. Mixes system blue with a
+ * soft amber so it feels measured but quietly proud. */
+.wizard-aurora-warm {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 320px;
+  height: 320px;
+  margin: -160px 0 0 -160px;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at center,
+    rgba(251, 191, 36, 0.32) 0%,
+    rgba(0, 113, 227, 0.16) 45%,
+    rgba(0, 113, 227, 0) 72%
+  );
+  filter: blur(10px);
+  animation: aurora-breathe 6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  pointer-events: none;
+}
+
+/* Confetti — restrained, single-burst. 14 small particles fan outward from
+ * the centre and fade. ~1.5s and gone. */
+@keyframes confetti-burst {
+  0%   { transform: translate(0, 0) scale(0.4) rotate(0deg);     opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: translate(var(--cx, 0), var(--cy, 0)) scale(0.85) rotate(var(--cr, 360deg)); opacity: 0; }
+}
+
+.wizard-confetti {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 10px;
+  border-radius: 2px;
+  animation: confetti-burst 1600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* Refined focus ring — matches the system-blue accent without screaming */
+.wizard-focus:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
+  border-color: var(--wizard-blue) !important;
+}
+
+/* Pill button — used on hero CTA + success CTA */
+.wizard-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.625rem;
+  border-radius: 9999px;
+  background: var(--wizard-ink);
+  color: white;
+  font-weight: 500;
+  font-size: 0.95rem;
+  letter-spacing: -0.005em;
+  transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 250ms ease;
+}
+
+.wizard-pill:hover:not(:disabled) {
+  background: #1e293b;
+  transform: translateY(-1px);
+}
+
+.wizard-pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

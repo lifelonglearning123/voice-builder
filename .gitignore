@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+dist/
+out/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Local env (all variants)
+.env
+.env.local
+.env*.local
+.env.production
+.env.production.local
+.env.development
+.env.development.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Database / data exports (not source code)
+*.csv
+*.sql.backup
+
+# Temp / scratch files
+tmp_*.json
+*.tmp
+
+# Compile run outputs (regenerable via npm run compile:run <fixture>)
+src/compile/fixtures/*.out.txt
+
+# Vercel
+.vercel

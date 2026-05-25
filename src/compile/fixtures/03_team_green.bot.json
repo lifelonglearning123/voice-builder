@@ -1,0 +1,139 @@
+{
+  "id": "00000000-0000-0000-0000-000000000003",
+  "agency_id": "00000000-0000-0000-0000-0000000000aa",
+  "client_id": "00000000-0000-0000-0000-0000000000dd",
+
+  "internal_name": "Team Green Tenant Support",
+  "business_name": "Team Green Group",
+  "business_address": null,
+  "industry": "Property management",
+  "language": "en-GB",
+  "working_hours": {},
+  "timezone": "Europe/London",
+  "out_of_hours_behavior": "answer_normally",
+
+  "agent_name": "Zoe",
+  "voice_id": "Gv42yFG3G6CHLsU5y8g6",
+  "tone_chips": ["Reassuring", "Empathetic", "Professional"],
+  "opening_line": "Hello, you've reached Team Green Group, this is Zoe the virtual receptionist. How can I help?",
+  "conversation_rules": {
+    "one_question_at_a_time": true,
+    "max_sentences_per_response": 2,
+    "ai_disclosure_response": "I am a virtual assistant",
+    "rotate_phrases_no_repeat_within_turns": 3
+  },
+  "pronunciation_rules": {
+    "spell_phone_digit_by_digit": true,
+    "spell_email_aloud": true,
+    "phonetic_url": true
+  },
+
+  "services": [],
+  "faqs": [],
+
+  "hard_guardrails": [
+    "Do not mention the owner's location or name",
+    "Do not volunteer that you are an AI; if asked, say 'virtual assistant'",
+    "Only handle inbound calls; do not make outbound calls",
+    "Do not schedule bookings",
+    "Do not provide ETAs for repairs",
+    "Acknowledge once, then act — avoid stacking thanks and confirmations",
+    "Do not repeat the same sentence within the last 3 turns",
+    "Refrain from offering advice outside simple triage steps or emergency procedures",
+    "Before treating a repair as an emergency, offer simple safe triage steps first (e.g. check appliance is plugged in, check the breaker hasn't tripped)"
+  ],
+
+  "escalation_rules": [
+    { "trigger": "immediate life or safety concern", "action": "custom_response", "detail": "Please contact emergency services on nine nine nine straight away." },
+    { "trigger": "gas emergency", "action": "custom_response", "detail": "Please contact the National Gas Emergency Service on zero eight hundred – one one one – nine nine nine straight away." },
+    { "trigger": "area-wide power outage", "action": "custom_response", "detail": "Please contact UK Power Networks on one zero five for area-wide power issues." },
+    { "trigger": "lease extension enquiry", "action": "take_message", "detail": "Please leave a message and a member of Team Green will get in touch." },
+    { "trigger": "direct contact request for Team Green", "action": "redirect_email", "detail": "resi@team-green.uk" }
+  ],
+
+  "website_url": null,
+
+  "transfer_enabled": false,
+  "transfer_number": null,
+  "transfer_triggers": null,
+  "transfer_pre_line": null,
+  "transfer_fallback": null,
+
+  "max_call_duration_s": 600,
+  "daily_minute_cap": 240,
+  "monthly_minute_cap": null,
+  "alert_recipients": [],
+
+  "twilio_phone_e164": "+442012345678",
+
+  "crm_status": "connected",
+  "crm_location_id": "loc_placeholder_team_green",
+
+  "booking_enabled": false,
+  "booking_calendar_id": null,
+  "booking_services": [],
+  "booking_lead_time_minutes": 120,
+  "booking_max_future_days": 30,
+  "booking_confirmation_message": null,
+  "booking_hours": null,
+
+  "custom_tools": [
+    {
+      "name": "send_sms",
+      "description": "Send an SMS to the tenant's mobile number with the emergency contractor list and key safety tips.",
+      "trigger": "the issue qualifies as an emergency repair (e.g. burst pipe, no heat in winter, smell of gas)",
+      "webhook_url": "https://platform.example.com/api/bots/{bot_id}/tools/send_sms",
+      "parameters": [
+        { "name": "mobile_number", "type": "string", "description": "Tenant's mobile number in E.164 format", "required": true },
+        { "name": "issue_summary", "type": "string", "description": "One-line summary of the reported issue", "required": true }
+      ]
+    }
+  ],
+  "reason_branches": [],
+
+  "capture_fields": [
+    {
+      "name": "issue_description",
+      "ask": "Could you give me a brief description of the issue?",
+      "required": true,
+      "timing": "early"
+    },
+    {
+      "name": "tenant_name",
+      "ask": "May I take your name?",
+      "required": true,
+      "timing": "early"
+    },
+    {
+      "name": "tenant_phone",
+      "ask": "And your mobile number?",
+      "required": true,
+      "timing": "early"
+    },
+    {
+      "name": "tenant_address",
+      "ask": "And the address of the property?",
+      "required": true,
+      "timing": "early"
+    }
+  ],
+  "verify_capture_before_close": false,
+
+  "post_call_fields": [
+    { "name": "issue_description", "type": "text", "hint": "Brief description of the issue reported by the tenant" },
+    { "name": "tenant_name", "type": "text", "hint": "Caller's name (required)" },
+    { "name": "tenant_phone", "type": "text", "hint": "Tenant's mobile number (required)" },
+    { "name": "tenant_address", "type": "text", "hint": "Tenant's address (required)" },
+    { "name": "is_emergency", "type": "boolean", "hint": "Whether the issue is classified as an emergency repair" },
+    { "name": "triage_steps_offered", "type": "text", "hint": "Any safe triage steps suggested to the caller" },
+    { "name": "redirect_reason", "type": "select", "options": ["life_safety", "gas", "power", "lease_extension", "none"], "hint": "Whether the call was redirected and to what" }
+  ],
+  "save_audio": true,
+  "save_transcript": true,
+  "crm_workflow_id": "wf_tenant_issue_received",
+  "fallback_email_to": null,
+  "fallback_email_template": null,
+
+  "tier": "starter",
+  "status": "draft"
+}
