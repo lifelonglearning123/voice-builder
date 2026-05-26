@@ -14,7 +14,6 @@ const COUNTRIES: Array<{ value: string; label: string }> = [
   { value: 'CA', label: 'Canada' },
 ];
 
-type Tab = 'paste' | 'buy';
 type NumberType = 'local' | 'tollfree' | 'mobile';
 
 interface AvailableNumber {
@@ -41,7 +40,6 @@ export default function Step6Page() {
   const router = useRouter();
   const { draft, patch, status } = useWizard();
 
-  const [tab, setTab] = useState<Tab>('paste');
   const [country, setCountry] = useState('GB');
   const [type, setType] = useState<NumberType>('local');
   const [contains, setContains] = useState('');
@@ -127,40 +125,7 @@ export default function Step6Page() {
           </div>
         )}
 
-        <div className="flex gap-1 border-b border-slate-200">
-          <TabButton active={tab === 'paste'} onClick={() => setTab('paste')}>
-            Paste existing
-          </TabButton>
-          <TabButton active={tab === 'buy'} onClick={() => setTab('buy')}>
-            Search &amp; buy
-          </TabButton>
-        </div>
-
-        {tab === 'paste' && (
-          <Field
-            label="Phone number (E.164)"
-            optional
-            hint='Paste a number you already own — e.g. "+441173214938". You can skip and add later.'
-            htmlFor="phone"
-          >
-            <input
-              id="phone"
-              type="tel"
-              placeholder="+441234567890"
-              value={value}
-              onChange={(e) => patch({ twilio_phone_e164: e.target.value || null })}
-              className={inputClass}
-            />
-            {!looksValid && (
-              <p className="mt-1 text-xs text-red-600">
-                Must start with + and contain 8–15 digits. Example: +441173214938
-              </p>
-            )}
-          </Field>
-        )}
-
-        {tab === 'buy' && (
-          <div className="space-y-4">
+        <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <Field label="Country" htmlFor="t_country">
                 <select
@@ -276,8 +241,7 @@ export default function Step6Page() {
               </div>
             )}
 
-          </div>
-        )}
+        </div>
       </div>
     </StepShell>
   );
@@ -293,26 +257,3 @@ function scrubProvider(message: string | undefined | null): string {
     .replace(/\bRetell\b/gi, 'voice service');
 }
 
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition ${
-        active
-          ? 'border-slate-900 text-slate-900'
-          : 'border-transparent text-slate-500 hover:text-slate-800'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
