@@ -140,6 +140,39 @@ export default function Step10Page() {
     const payload = compiled;
     setState({ kind: 'deploying' });
     try {
+      // Buy the Twilio number now (post-payment) if the SMB selected one
+      // during the wizard. We don't charge the agency for the number rental
+      // until after the SMB has paid for their subscription. The buy route
+      // is idempotent: if the number is already in this Twilio account
+      // (e.g. user pasted an existing number, or a previous activation
+      // already bought it), it returns success without re-purchasing.
+      if (draft!.twilio_phone_e164) {
+        const buyRes = await fetch('/api/twilio/buy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone_number: draft!.twilio_phone_e164,
+            friendly_name: draft!.internal_name || draft!.business_name || undefined,
+            country:
+              draft!.twilio_phone_e164.startsWith('+44')
+                ? 'GB'
+                : draft!.twilio_phone_e164.startsWith('+1')
+                  ? 'US'
+                  : undefined,
+          }),
+        });
+        const buyData = await buyRes.json();
+        if (!buyRes.ok || !buyData.phone_number) {
+          setState({
+            kind: 'deploy_error',
+            message:
+              buyData.error ||
+              'We couldn’t reserve your phone number. It may no longer be available — please go back to Step 6 and pick a different one.',
+          });
+          return;
+        }
+      }
+
       const res = await fetch('/api/retell/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -83,46 +83,22 @@ export default function Step6Page() {
     }
   }
 
-  async function handleBuy(phone_number: string) {
-    setBuy({ kind: 'buying', phone_number });
-    try {
-      const res = await fetch('/api/twilio/buy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone_number,
-          friendly_name: draft!.internal_name || draft!.business_name || undefined,
-          country,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.phone_number) {
-        // The proxy already translates common failures, but we still scrub any
-        // provider name out of the upstream detail (and hide the detail for
-        // 502s where the translated `error` is already user-friendly).
-        setBuy({
-          kind: 'error',
-          message: scrubProvider(data.error) || `HTTP ${res.status}`,
-        });
-        return;
-      }
-      patch({ twilio_phone_e164: data.phone_number });
-      setBuy({ kind: 'idle' });
-      // Remove the just-bought number from the search results.
-      setSearch((prev) =>
-        prev.kind === 'results'
-          ? {
-              kind: 'results',
-              numbers: prev.numbers.filter((n) => n.phone_number !== phone_number),
-            }
-          : prev,
-      );
-    } catch (e) {
-      setBuy({
-        kind: 'error',
-        message: e instanceof Error ? e.message : 'Purchase failed',
-      });
-    }
+  function handleSelect(phone_number: string) {
+    // Just record the SMB's chosen number on the draft — we don't actually
+    // purchase it from Twilio until *after* the SMB has paid (in the
+    // activation flow on step 8). This avoids the agency eating the number
+    // rental cost for SMBs who abandon before paying.
+    patch({ twilio_phone_e164: phone_number });
+    setBuy({ kind: 'idle' });
+    // Remove the now-selected number from the search results — visual cue.
+    setSearch((prev) =>
+      prev.kind === 'results'
+        ? {
+            kind: 'results',
+            numbers: prev.numbers.filter((n) => n.phone_number !== phone_number),
+          }
+        : prev,
+    );
   }
 
   return (
@@ -246,6 +222,13 @@ export default function Step6Page() {
               </div>
             )}
 
+            {search.kind === 'results' && search.numbers.length > 0 && (
+              <p className="text-xs text-slate-500">
+                Choose the number your customers will call to reach your AI
+                receptionist.
+              </p>
+            )}
+
             {search.kind === 'results' && (
               <div className="rounded-md border border-slate-200">
                 {search.numbers.length === 0 ? (
@@ -259,8 +242,6 @@ export default function Step6Page() {
                 ) : (
                   <ul className="divide-y divide-slate-100">
                     {search.numbers.map((n) => {
-                      const isBuying =
-                        buy.kind === 'buying' && buy.phone_number === n.phone_number;
                       const subParts = [n.locality, n.region, n.iso_country].filter(Boolean);
                       return (
                         <li
@@ -275,11 +256,10 @@ export default function Step6Page() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleBuy(n.phone_number)}
-                            disabled={buy.kind === 'buying'}
-                            className="shrink-0 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => handleSelect(n.phone_number)}
+                            className="shrink-0 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
                           >
-                            {isBuying ? 'Buying…' : 'Buy'}
+                            Select
                           </button>
                         </li>
                       );

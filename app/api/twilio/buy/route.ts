@@ -46,6 +46,30 @@ export async function POST(req: Request) {
     );
   }
 
+  // Idempotency — if the number is already in this Twilio account (e.g.
+  // the user pasted a number they own, or a previous activation already
+  // purchased it), skip the purchase and return success.
+  const lookupUrl = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phone)}`;
+  const lookupRes = await fetch(lookupUrl, {
+    headers: { Authorization: basicAuth(sid, token) },
+  });
+  if (lookupRes.ok) {
+    const lookupData = (await lookupRes.json().catch(() => ({}))) as {
+      incoming_phone_numbers?: Array<{ sid: string; phone_number: string; friendly_name?: string }>;
+    };
+    const existing = lookupData.incoming_phone_numbers?.find(
+      (n) => n.phone_number === phone,
+    );
+    if (existing) {
+      return NextResponse.json({
+        sid: existing.sid,
+        phone_number: existing.phone_number,
+        friendly_name: existing.friendly_name,
+        already_owned: true,
+      });
+    }
+  }
+
   const form = new URLSearchParams();
   form.set('PhoneNumber', phone);
   if (body.friendly_name) form.set('FriendlyName', body.friendly_name);

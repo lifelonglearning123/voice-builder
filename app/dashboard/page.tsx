@@ -69,11 +69,7 @@ export default async function DashboardPage() {
             supabase={supabase}
           />
         ) : isClient ? (
-          <ClientOwnView
-            agency={clientOf[0].agencies}
-            userId={user.id}
-            supabase={supabase}
-          />
+          <ClientOwnView userId={user.id} supabase={supabase} />
         ) : (
           <NoAccessState />
         )}
@@ -221,11 +217,9 @@ async function StaffPortfolioView({
  * ------------------------------------------------------------------------- */
 
 async function ClientOwnView({
-  agency,
   userId,
   supabase,
 }: {
-  agency: { id: string; name: string; slug: string };
   userId: string;
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
 }) {
@@ -250,13 +244,6 @@ async function ClientOwnView({
       >
         Welcome back.
       </h1>
-      <p
-        className="mt-2 text-base text-slate-500 wizard-fade-up"
-        style={{ animationDelay: '120ms' }}
-      >
-        You&apos;re signed in via{' '}
-        <span className="font-medium text-slate-900">{agency.name}</span>.
-      </p>
 
       {!hasBots ? (
         <div
@@ -272,11 +259,27 @@ async function ClientOwnView({
           </span>
         </div>
       ) : (
-        <section
-          className="mt-10 rounded-xl border border-slate-200 bg-white p-6 wizard-fade-up"
-          style={{ animationDelay: '180ms' }}
-        >
-          <ul className="divide-y divide-slate-100">
+        <>
+          <div
+            className="mt-10 flex items-center justify-between wizard-fade-up"
+            style={{ animationDelay: '180ms' }}
+          >
+            <p className="font-mono-tight text-[11px] tracking-[0.18em] uppercase text-slate-400">
+              Your receptionists
+            </p>
+            <Link
+              href={'/bots/new' as never}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-500 hover:text-slate-900"
+            >
+              <span aria-hidden="true" className="text-base leading-none">＋</span>
+              Build another
+            </Link>
+          </div>
+          <section
+            className="mt-3 rounded-xl border border-slate-200 bg-white p-6 wizard-fade-up"
+            style={{ animationDelay: '240ms' }}
+          >
+            <ul className="divide-y divide-slate-100">
             {bots!.map((b) => {
               const draft = b.draft as { business_name?: string } | null;
               const subStatus = b.client_subscription_status;
@@ -321,8 +324,9 @@ async function ClientOwnView({
                 </li>
               );
             })}
-          </ul>
-        </section>
+            </ul>
+          </section>
+        </>
       )}
     </>
   );
