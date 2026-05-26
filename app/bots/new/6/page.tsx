@@ -88,15 +88,12 @@ export default function Step6Page() {
     // rental cost for SMBs who abandon before paying.
     patch({ twilio_phone_e164: phone_number });
     setBuy({ kind: 'idle' });
-    // Remove the now-selected number from the search results — visual cue.
-    setSearch((prev) =>
-      prev.kind === 'results'
-        ? {
-            kind: 'results',
-            numbers: prev.numbers.filter((n) => n.phone_number !== phone_number),
-          }
-        : prev,
-    );
+    setSearch({ kind: 'idle' });
+    // Bring the confirmation banner + footer Continue button into view —
+    // otherwise the user is stranded mid-list and has to hunt for the CTA.
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   return (
@@ -110,21 +107,47 @@ export default function Step6Page() {
       nextDisabled={!looksValid}
     >
       <div className="space-y-5">
-        {value && (
-          <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900">
-            <p className="font-medium">
-              Current number: <code className="rounded bg-white px-1.5 py-0.5">{value}</code>
-            </p>
-            <button
-              type="button"
-              onClick={() => patch({ twilio_phone_e164: null })}
-              className="mt-1 text-xs font-medium text-green-700 underline hover:text-green-900"
-            >
-              Clear and pick a different number
-            </button>
+        {value ? (
+          <div className="rounded-lg border border-green-200 bg-green-50 p-5">
+            <div className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-4 w-4"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.42L8.5 12.086l6.79-6.795a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-green-900">
+                  Number selected
+                </p>
+                <p className="mt-1 font-mono text-base text-green-900">
+                  {value}
+                </p>
+                <p className="mt-2 text-xs text-green-800">
+                  Click <span className="font-medium">Continue</span> below to move on, or pick a different number.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => patch({ twilio_phone_e164: null })}
+                  className="mt-2 text-xs font-medium text-green-700 underline hover:text-green-900"
+                >
+                  Clear and pick a different number
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-
+        ) : (
         <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <Field label="Country" htmlFor="t_country">
@@ -242,6 +265,7 @@ export default function Step6Page() {
             )}
 
         </div>
+        )}
       </div>
     </StepShell>
   );
