@@ -119,7 +119,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   try {
     const stripe2 = getStripe();
     const sub = await stripe2.subscriptions.retrieve(subscriptionId);
-    cancelAtPeriodEnd = !!sub.cancel_at_period_end;
+    cancelAtPeriodEnd = isCancellationPending(sub);
     periodEnd = subscriptionPeriodEndIso(sub);
   } catch {
     /* keep defaults */
@@ -227,13 +227,14 @@ async function handleSubscriptionChange(sub: Stripe.Subscription): Promise<void>
     return;
   }
 
-  // When the SMB cancels at period end, status stays 'active' and
-  // cancel_at_period_end flips to true. We keep the bot running but record
-  // the pending cancellation so the dashboard can show the date.
+  // When the SMB cancels at period end, status stays 'active' and either
+  // cancel_at_period_end flips to true (legacy) or cancel_at gets a timestamp
+  // (newer portal-initiated cancels). Either way, we keep the bot running and
+  // record the pending cancellation so the dashboard can show the date.
   const periodEnd = subscriptionPeriodEndIso(latest);
   const payload = {
     client_subscription_status: latest.status,
-    cancel_at_period_end: !!latest.cancel_at_period_end,
+    cancel_at_period_end: isCancellationPending(latest),
     current_period_end: periodEnd,
   };
 
@@ -317,6 +318,17 @@ function stringMetadata(
 ): string | null {
   const value = meta?.[key];
   return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+// Stripe transitioned from the boolean `cancel_at_period_end` to the timestamped
+// `cancel_at` field when a scheduled cancellation is set via the customer portal
+// in newer API versions. The boolean stays `false` even when a cancellation IS
+// pending, so checking it alone misses portal-initiated cancels. Treat either
+// signal as "cancellation pending" while the subscription is still active.
+function isCancellationPending(sub: Stripe.Subscription): boolean {
+  if (sub.cancel_at_period_end) return true;
+  const cancelAt = (sub as unknown as { cancel_at?: number | null }).cancel_at;
+  return typeof cancelAt === 'number' && cancelAt > 0 && sub.status === 'active';
 }
 
 function subscriptionPeriodEndIso(sub: Stripe.Subscription): string | null {
