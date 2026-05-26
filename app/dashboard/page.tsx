@@ -312,7 +312,7 @@ async function ClientOwnView({
                       <ManageBillingButton botId={b.id} />
                     )}
                     <Link
-                      href={`/bots/new`}
+                      href={`/bots/new?bot=${b.id}` as never}
                       className="text-xs font-medium text-slate-600 hover:text-slate-900"
                     >
                       Edit →

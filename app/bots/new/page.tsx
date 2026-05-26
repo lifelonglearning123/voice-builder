@@ -41,7 +41,7 @@ const STEP_TOTAL = 8;
 
 export default function NewBotPage() {
   const router = useRouter();
-  const { setDraft } = useWizard();
+  const { setDraft, draft, botId, status } = useWizard();
 
   const [description, setDescription] = useState('');
   const [industry, setIndustry] = useState('');
@@ -57,6 +57,19 @@ export default function NewBotPage() {
       if (tickTimer.current) clearInterval(tickTimer.current);
     };
   }, []);
+
+  // If the wizard loaded an existing bot (via ?bot=… URL param from the
+  // dashboard's Edit link), skip the description form and jump straight to
+  // step 2 with their data populated.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (status !== 'idle') return;
+    if (!draft || !botId) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('bot')) {
+      router.replace('/bots/new/1' as never);
+    }
+  }, [status, draft, botId, router]);
 
   function startElapsed() {
     setElapsedMs(0);

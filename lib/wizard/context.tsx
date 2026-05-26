@@ -89,12 +89,16 @@ export function ensureWizardShape(
 
 type Status = 'loading' | 'idle' | 'saving' | 'error' | 'no_agency';
 
+type BotLifecycle = 'draft' | 'live' | 'archived' | null;
+
 interface WizardState {
   draft: WizardDraft | null;
   /** Database id of the in-progress bot row. Null until first save. */
   botId: string | null;
   /** The agency this user is acting on behalf of. Required for any save. */
   agencyId: string | null;
+  /** Lifecycle status of the loaded bot — null if no bot loaded. */
+  botStatus: BotLifecycle;
   /** UI state for the persistence layer. */
   status: Status;
   setDraft: (next: PrefilledBot | WizardDraft | null) => void;
@@ -114,6 +118,7 @@ const WizardContext = createContext<WizardState | null>(null);
 export function WizardProvider({ children }: { children: ReactNode }) {
   const [draft, setDraftState] = useState<WizardDraft | null>(null);
   const [botId, setBotId] = useState<string | null>(null);
+  const [botStatus, setBotStatus] = useState<BotLifecycle>(null);
   const [agencyId, setAgencyId] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>('loading');
 
@@ -178,19 +183,36 @@ export function WizardProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // Find the most recent draft for this user (status='draft').
-        const { data: bot } = await supabase
-          .from('bots')
-          .select('id, draft')
-          .eq('owner_user_id', user.id)
-          .eq('status', 'draft')
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        // If the URL has ?bot=<id>, load THAT specific bot regardless of
+        // status (e.g. when the user clicks "Edit" on a live bot from the
+        // dashboard). Otherwise, fall back to the most recent draft.
+        const requestedBotId =
+          typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('bot')
+            : null;
+
+        const query = requestedBotId
+          ? supabase
+              .from('bots')
+              .select('id, draft, status')
+              .eq('owner_user_id', user.id)
+              .eq('id', requestedBotId)
+              .maybeSingle()
+          : supabase
+              .from('bots')
+              .select('id, draft, status')
+              .eq('owner_user_id', user.id)
+              .eq('status', 'draft')
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+        const { data: bot } = await query;
         if (cancelled) return;
 
         if (bot) {
           setBotId(bot.id);
+          setBotStatus(bot.status as BotLifecycle);
           setDraftState(ensureWizardShape(bot.draft as Partial<WizardDraft>));
         }
         setStatus('idle');
@@ -350,6 +372,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     () => ({
       draft,
       botId,
+      botStatus,
       agencyId,
       status,
       setDraft,
@@ -357,7 +380,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       reset,
       markActivated,
     }),
-    [draft, botId, agencyId, status, setDraft, patch, reset, markActivated],
+    [draft, botId, botStatus, agencyId, status, setDraft, patch, reset, markActivated],
   );
 
   return <WizardContext.Provider value={value}>{children}</WizardContext.Provider>;

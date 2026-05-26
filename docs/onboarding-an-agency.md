@@ -58,6 +58,20 @@ In **Vercel project → Settings → Domains → Add Domain**, add
 `voice-builder.acmedigital.com`. Vercel verifies + provisions SSL
 automatically (~2 min).
 
+## 3b. Add the agency's domain to Supabase Redirect URLs
+
+Supabase rejects any auth redirect URL that isn't on its allowlist. Without
+this step, magic-link emails for the new agency's SMBs will silently fall
+back to the platform Site URL — breaking the white-label illusion.
+
+- Supabase Dashboard → your project → **Authentication → URL Configuration**
+- **Redirect URLs** → click **Add URL**
+- Paste: `https://voice-builder.acmedigital.com/**`  *(the `/**` wildcard lets the `?next=…&agency=…` query string variations through)*
+- **Save**
+
+Site URL stays unchanged — it's the platform's default and shared across all
+agencies. Only the Redirect URLs list grows as agencies join.
+
 ---
 
 ## 4. Insert the agency row + owner membership
