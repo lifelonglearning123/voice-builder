@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { BrandingForm } from '@/components/dashboard/BrandingForm';
 
 // /dashboard/settings — agency staff only.
 //
@@ -28,7 +29,9 @@ export default async function AgencySettingsPage({
   // Must be agency staff (owner or admin) to see this page.
   const { data: staffRows } = await supabase
     .from('agency_members')
-    .select('role, agencies(id, name, slug, stripe_connect_account_id, stripe_connect_onboarding_complete)')
+    .select(
+      'role, agencies(id, name, slug, stripe_connect_account_id, stripe_connect_onboarding_complete, brand_logo_url, brand_color, custom_domain, custom_domain_verified, client_price_pence, client_currency)',
+    )
     .eq('user_id', user.id);
 
   type StaffJoin = {
@@ -39,6 +42,12 @@ export default async function AgencySettingsPage({
       slug: string;
       stripe_connect_account_id: string | null;
       stripe_connect_onboarding_complete: boolean;
+      brand_logo_url: string | null;
+      brand_color: string | null;
+      custom_domain: string | null;
+      custom_domain_verified: boolean;
+      client_price_pence: number | null;
+      client_currency: string | null;
     } | null;
   };
 
@@ -115,10 +124,40 @@ export default async function AgencySettingsPage({
           canManage={canManage}
         />
 
-        <p className="mt-10 text-xs text-slate-400">
-          For changes to your branding, custom domain, or sender email, contact your
-          platform administrator.
-        </p>
+        <section className="mt-10 rounded-xl border border-slate-200 bg-white p-6">
+          <p className="font-mono-tight text-[11px] tracking-[0.18em] text-slate-400">
+            BRANDING
+          </p>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+            How your marketing site looks
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-500">
+            Your agency name, logo, brand colour, and the price you charge your SMB
+            clients. Visitors landing at your custom domain see this branding everywhere
+            — homepage, pricing, FAQ, signup, dashboard.
+          </p>
+
+          {canManage ? (
+            <div className="mt-6">
+              <BrandingForm
+                agencyId={agency.id}
+                initial={{
+                  name: agency.name,
+                  brand_logo_url: agency.brand_logo_url,
+                  brand_color: agency.brand_color,
+                  custom_domain: agency.custom_domain,
+                  custom_domain_verified: agency.custom_domain_verified,
+                  client_price_pence: agency.client_price_pence,
+                  client_currency: agency.client_currency,
+                }}
+              />
+            </div>
+          ) : (
+            <p className="mt-6 text-xs text-slate-400">
+              Only agency owners and admins can update branding.
+            </p>
+          )}
+        </section>
       </div>
     </main>
   );

@@ -234,3 +234,212 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ---------------------------------------------------------------------------
+ * Marketing site — public landing pages
+ * Reuses the wizard's design language (system fonts, slate-900/canvas, tight
+ * tracking, restrained motion) but with editorial-scale typography, scroll-
+ * triggered reveals, and an agency-themable accent.
+ *
+ * The accent is injected per-request from the resolved agency's brand_color
+ * via inline style on <body> (or shell wrapper):
+ *   style={{ '--agency-accent': '#0071e3', '--agency-accent-rgb': '0,113,227' }}
+ * Falls back to system blue when no agency matches.
+ * --------------------------------------------------------------------------- */
+
+:root {
+  --agency-accent: #0071e3;
+  --agency-accent-rgb: 0, 113, 227;
+}
+
+.marketing-canvas {
+  background-color: #fbfbfd;
+  color: var(--wizard-ink);
+}
+
+/* Scroll-triggered reveal — pure CSS, observer-driven via IntersectionObserver
+ * in a tiny client island. Elements start invisible, lift in on enter. */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 900ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger children of a .reveal-stagger container so they cascade in. */
+.reveal-stagger > .reveal:nth-child(1) { transition-delay: 0ms; }
+.reveal-stagger > .reveal:nth-child(2) { transition-delay: 80ms; }
+.reveal-stagger > .reveal:nth-child(3) { transition-delay: 160ms; }
+.reveal-stagger > .reveal:nth-child(4) { transition-delay: 240ms; }
+.reveal-stagger > .reveal:nth-child(5) { transition-delay: 320ms; }
+.reveal-stagger > .reveal:nth-child(6) { transition-delay: 400ms; }
+
+/* Hero radial glow — tinted by --agency-accent. Sits behind the headline. */
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      60% 50% at 50% 30%,
+      rgba(var(--agency-accent-rgb), 0.18) 0%,
+      rgba(var(--agency-accent-rgb), 0.06) 35%,
+      rgba(var(--agency-accent-rgb), 0) 70%
+    ),
+    radial-gradient(
+      40% 35% at 80% 60%,
+      rgba(var(--agency-accent-rgb), 0.08) 0%,
+      rgba(var(--agency-accent-rgb), 0) 60%
+    );
+  filter: blur(2px);
+}
+
+/* A subtle grid for backgrounds — barely visible, lifts the page from "flat
+ * white" without going maximalist. */
+.bg-fine-grid {
+  background-image:
+    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 30%, transparent 80%);
+}
+
+/* Marketing pill — same DNA as wizard-pill but slightly bigger for hero CTAs */
+.marketing-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.875rem;
+  border-radius: 9999px;
+  background: var(--wizard-ink);
+  color: white;
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: -0.005em;
+  transition:
+    transform 250ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 250ms ease,
+    box-shadow 250ms ease;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.marketing-pill:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 6px 18px rgba(var(--agency-accent-rgb), 0.25);
+}
+
+.marketing-pill--ghost {
+  background: transparent;
+  color: var(--wizard-ink);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: none;
+}
+
+.marketing-pill--ghost:hover {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.2);
+  box-shadow: none;
+}
+
+/* Display-size headline class — Apple-grade tight tracking + system stack. */
+.display-headline {
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+
+.display-headline-sm {
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+/* Audio waveform bars — animated when .is-playing is applied to the parent. */
+@keyframes waveform-pulse {
+  0%, 100% { transform: scaleY(0.3); }
+  50%      { transform: scaleY(1); }
+}
+
+.waveform-bar {
+  display: inline-block;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--agency-accent);
+  transform-origin: center;
+  transform: scaleY(0.3);
+  transition: transform 200ms ease;
+}
+
+.is-playing .waveform-bar {
+  animation: waveform-pulse 900ms cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.is-playing .waveform-bar:nth-child(2n)  { animation-delay: -200ms; animation-duration: 700ms; }
+.is-playing .waveform-bar:nth-child(3n)  { animation-delay: -350ms; animation-duration: 1100ms; }
+.is-playing .waveform-bar:nth-child(5n)  { animation-delay: -500ms; animation-duration: 850ms; }
+.is-playing .waveform-bar:nth-child(7n)  { animation-delay: -150ms; animation-duration: 950ms; }
+.is-playing .waveform-bar:nth-child(11n) { animation-delay: -300ms; animation-duration: 750ms; }
+
+/* Big stat number — used in metric callouts. Looks intentional, not decorative. */
+.stat-number {
+  font-weight: 600;
+  font-size: clamp(3.5rem, 8vw, 6rem);
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  background: linear-gradient(180deg, var(--wizard-ink) 0%, #475569 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Marketing card — restrained, no heavy shadow */
+.marketing-card {
+  background: white;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 20px;
+  transition:
+    border-color 250ms ease,
+    box-shadow 250ms ease,
+    transform 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.marketing-card:hover {
+  border-color: rgba(var(--agency-accent-rgb), 0.25);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 12px 32px rgba(15, 23, 42, 0.06);
+  transform: translateY(-2px);
+}
+
+/* FAQ expandable — chevron rotates on open */
+.faq-chevron {
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+details[open] .faq-chevron {
+  transform: rotate(180deg);
+}
+
+/* Hairline divider — used between sections in some pages */
+.hairline {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(15, 23, 42, 0.08) 20%,
+    rgba(15, 23, 42, 0.08) 80%,
+    transparent 100%
+  );
+}
