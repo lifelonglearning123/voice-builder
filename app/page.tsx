@@ -64,9 +64,10 @@ export default async function HomePage() {
               </Reveal>
               <Reveal delayMs={160}>
                 <p className="mt-6 max-w-xl text-lg leading-snug tracking-tight text-slate-600 md:text-xl">
-                  A voice that sounds human. A receptionist that books, qualifies and
-                  follows up — answering inside three rings, twenty-four hours a day.
-                  Ready in twelve minutes.
+                  Right now... someone&apos;s ringing your business. If nobody picks up
+                  in three rings, they&apos;re dialling the next name on Google. A voice
+                  so human they don&apos;t ask. A receptionist that books the job
+                  during the call. Live in twelve minutes.
                 </p>
               </Reveal>
               <Reveal delayMs={240}>
@@ -117,8 +118,8 @@ export default async function HomePage() {
               <div>
                 <p className="stat-number">24/7</p>
                 <p className="mt-3 text-sm tracking-tight text-slate-600">
-                  Answers every call — including 6am Saturday and 11pm
-                  Wednesday. Your competitors don&apos;t.
+                  6am Saturday. 11pm Wednesday. The school run. Your honeymoon.
+                  It answers. Your competitors&apos; phones don&apos;t.
                 </p>
               </div>
             </Reveal>
@@ -126,8 +127,8 @@ export default async function HomePage() {
               <div>
                 <p className="stat-number">&lt; 3s</p>
                 <p className="mt-3 text-sm tracking-tight text-slate-600">
-                  Picks up before three rings. No hold music. No voicemail
-                  that nobody listens to.
+                  Picks up before the third ring. No hold music. No voicemail.
+                  And no caller deciding you&apos;ve gone out of business.
                 </p>
               </div>
             </Reveal>
@@ -135,8 +136,8 @@ export default async function HomePage() {
               <div>
                 <p className="stat-number">12 min</p>
                 <p className="mt-3 text-sm tracking-tight text-slate-600">
-                  From sign-up to live phone number. Describe your business
-                  in plain English; the AI learns the rest.
+                  From signing up... to a live UK phone number ringing.
+                  Two sentences about your business and the AI does the rest.
                 </p>
               </div>
             </Reveal>
@@ -206,20 +207,20 @@ export default async function HomePage() {
           <div className="space-y-28">
             <ProofRow
               eyebrow="Sounds human"
-              headline="A voice that doesn't tell."
-              body="Customers ask if they're speaking to a person. They're not. Pauses, intonation, back-channelling — the AI handles the parts of a conversation that make it feel real, without pretending to be one."
+              headline="A voice that doesn’t tell."
+              body="You’re thinking it sounds like a robot. It doesn’t. The pauses are there. The ‘mm-hmm’ is there. The breath before a sentence is there. Most callers book the job and hang up without ever asking. And if anyone does ask... it tells them the truth. We don’t fake it. We don’t have to."
               imageRight={false}
             />
             <ProofRow
               eyebrow="Takes action"
               headline="Books. Qualifies. Hands off."
-              body="It doesn't just chat. It books appointments into your calendar, captures lead details into your CRM, and pushes the call summary to whoever needs it. The work happens during the call, not after."
+              body="It doesn’t just chat. It takes the postcode. It checks the diary. It books the slot. By the time the caller hangs up... the appointment is in your calendar and the summary is sitting in your inbox. No call notes to type up. No callbacks to make. No “I’ll get back to you on that.”"
               imageRight={true}
             />
             <ProofRow
               eyebrow="Learns your business"
-              headline="Trained on you, not the internet."
-              body="Describe your services, working hours and the questions customers always ask. The AI absorbs your knowledge base and only answers from it — no hallucinated prices, no off-brand replies."
+              headline="Trained on you. Not the internet."
+              body="Two sentences and a website URL. The AI reads every page you’ve ever published — services, hours, prices, the awkward FAQs — and only answers from that. So when a caller asks about a £180 boiler service... it quotes £180. Not £80. Not £280. No hallucinated prices. No off-brand replies. No ‘as an AI language model.’"
               imageRight={false}
             />
           </div>
@@ -238,9 +239,9 @@ export default async function HomePage() {
           </Reveal>
           <Reveal delayMs={80}>
             <h2 className="display-headline-sm mt-4 max-w-3xl text-4xl text-slate-900 md:text-6xl">
-              Working in plumbing,<br />
-              dentistry, lettings or law?<br />
-              <span className="text-slate-400">It already knows your script.</span>
+              Plumbing. Dentistry.<br />
+              Lettings. Law.<br />
+              <span className="text-slate-400">It already knows the script.</span>
             </h2>
           </Reveal>
 
@@ -293,9 +294,10 @@ export default async function HomePage() {
           </Reveal>
           <Reveal delayMs={160}>
             <p className="mx-auto mt-6 max-w-xl text-base leading-snug tracking-tight text-slate-600 md:text-lg">
-              One dedicated phone number, unlimited inbound minutes within fair use,
-              all calls recorded, transcripts emailed, integrations included. Cancel
-              from the dashboard any time.
+              One UK number. Unlimited inbound minutes. Every call recorded.
+              Every transcript emailed. Every integration included. Cancel from
+              your dashboard in two clicks... no exit fee, no notice period,
+              no awkward phone call.
             </p>
           </Reveal>
           <Reveal delayMs={240}>
@@ -515,19 +517,19 @@ function DotIcon() {
 const STEPS = [
   {
     title: 'Describe your business',
-    body: 'Two sentences and your website URL. The AI reads everything and drafts a receptionist that already knows your services, hours, and tone.',
+    body: 'Two sentences and a website URL. The AI reads every page and drafts a receptionist that already knows your services... your hours... your tone.',
   },
   {
     title: 'Pick a voice',
-    body: 'Choose from four production-grade voices. Preview them in the wizard before you commit. Switch later if your customers prefer a different one.',
+    body: 'Four production voices. Preview each one in the wizard before you commit. Switch later if your customers like a different one better.',
   },
   {
     title: 'Plug it in',
-    body: 'A UK phone number is provisioned in seconds. Point your existing line to it, or use it as a new dedicated number. No carrier paperwork.',
+    body: 'A UK number is provisioned in seconds. Point your existing line to it... or use it as a fresh dedicated number. No carrier paperwork.',
   },
   {
     title: 'Watch it answer',
-    body: 'Every call is recorded, transcribed, and summarised. Lead details land in your inbox or your CRM the moment the caller hangs up.',
+    body: 'Every call recorded. Every word transcribed. Every lead in your inbox the second the caller hangs up. You sleep. It answers.',
   },
 ];
 

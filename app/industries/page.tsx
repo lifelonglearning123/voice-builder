@@ -31,9 +31,10 @@ export default async function IndustriesPage() {
           </Reveal>
           <Reveal delayMs={160}>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-snug tracking-tight text-slate-600">
-              The receptionist learns your services, your prices, your booking
-              rules and your tone. Pick the closest match below to see how it
-              handles your kind of caller.
+              Your services. Your prices. Your booking rules. Your tone of voice.
+              The AI learns the lot... and only answers from it. Pick the closest
+              match below and hear how it handles the kind of caller you actually
+              get.
             </p>
           </Reveal>
         </div>
@@ -110,9 +111,9 @@ export default async function IndustriesPage() {
           </Reveal>
           <Reveal delayMs={160}>
             <p className="mx-auto mt-6 max-w-2xl text-base leading-snug tracking-tight text-slate-600 md:text-lg">
-              The above are the most common — but the wizard learns whatever you
-              describe. Tradespeople, clinics, agencies, schools, retailers, B2B
-              services. If your customers call you, the AI can answer.
+              The above are the most common. But the wizard learns whatever you
+              describe. Tradespeople. Clinics. Agencies. Schools. Retailers. B2B.
+              If your customers pick up the phone... the AI can answer it.
             </p>
           </Reveal>
           <Reveal delayMs={240}>
@@ -139,7 +140,7 @@ const INDUSTRIES = [
   {
     slug: 'plumbing',
     title: 'Plumbing & heating',
-    tagline: 'Emergency call-outs and routine bookings — without you missing the burst-pipe call at 6pm Sunday.',
+    tagline: 'The burst-pipe call at 6pm Sunday. The boiler that died on Christmas Eve. Caught. Triaged. Booked. While you’re still at the dinner table.',
     handles: [
       'Emergency vs routine triage',
       'Address and postcode capture',
@@ -151,7 +152,7 @@ const INDUSTRIES = [
   {
     slug: 'dental',
     title: 'Dental practices',
-    tagline: 'New patient enquiries booked, treatment questions answered, NHS vs private explained — first ring.',
+    tagline: 'New patient asks the Invisalign question reception always fluffs. The AI quotes the right price, books the consult, sends the confirmation. First ring.',
     handles: [
       'New vs existing patient routing',
       'Pricing for common treatments',
@@ -163,7 +164,7 @@ const INDUSTRIES = [
   {
     slug: 'estate',
     title: 'Estate agents',
-    tagline: 'Viewings booked, vendor enquiries qualified, applicant details captured — even at 9pm on a Sunday.',
+    tagline: 'Sunday 9pm. Applicant scrolling Rightmove from the sofa. They tap call. By the time you’re back at your desk on Monday... the viewing is booked.',
     handles: [
       'Vendor vs applicant routing',
       'Property reference matching',
@@ -175,7 +176,7 @@ const INDUSTRIES = [
   {
     slug: 'law',
     title: 'Law firms',
-    tagline: 'Triage, conflict checks, and consultation scheduling — without breaking confidentiality or making promises.',
+    tagline: 'Triage. Conflict check. Consult booked. Without breaking confidentiality... without making promises... and without your paralegal pulled off chargeable work.',
     handles: [
       'Practice-area triage',
       'Conflict-check intake',
@@ -187,7 +188,7 @@ const INDUSTRIES = [
   {
     slug: 'beauty',
     title: 'Beauty & spa',
-    tagline: 'Treatment bookings, gift-voucher enquiries, last-minute slot fills — your therapists keep working.',
+    tagline: 'Your therapists keep their hands on the client. The phone keeps booking. Last-minute cancellation refills itself before you’ve noticed it opened up.',
     handles: [
       'Treatment-specific booking',
       'Gift voucher and package sales',
@@ -199,7 +200,7 @@ const INDUSTRIES = [
   {
     slug: 'trades',
     title: 'Trades & contractors',
-    tagline: 'Builders, electricians, roofers, decorators — the AI takes details, gives ballparks and books site visits.',
+    tagline: 'You’re up a ladder. Your phone’s in the van. The AI takes the details, gives the ballpark, books the site visit. You ring back when you’re back on the ground.',
     handles: [
       'Quote vs urgent job routing',
       'Site address and access capture',
@@ -211,7 +212,7 @@ const INDUSTRIES = [
   {
     slug: 'vet',
     title: 'Vet practices',
-    tagline: 'Emergencies routed instantly, vaccinations booked, prescription enquiries captured — gentle tone built in.',
+    tagline: 'A panicked owner with a poorly cat. A gentle voice, calm questions, instant triage. Emergencies routed in seconds. Routine bookings handled in the background.',
     handles: [
       'Emergency vs routine triage',
       'Pet records and history capture',
@@ -223,7 +224,7 @@ const INDUSTRIES = [
   {
     slug: 'agency',
     title: 'Marketing & agencies',
-    tagline: 'Inbound leads qualified before they hit the inbox. Budget, timeline and fit — captured during the call.',
+    tagline: 'The tyre-kicker gets filtered out. The real lead gets BANT-qualified... budget, timeline, fit captured during the call... and lands in your inbox as a hot one.',
     handles: [
       'BANT qualification',
       'Industry and size capture',
@@ -235,7 +236,7 @@ const INDUSTRIES = [
   {
     slug: 'fitness',
     title: 'Gyms & studios',
-    tagline: 'Class enquiries answered, trial sessions booked, membership questions handled — even mid-class.',
+    tagline: 'Mid-spin class. Mid-deadlift. The phone keeps ringing — and keeps getting answered. Trial sessions booked. Membership questions handled. Without skipping a rep.',
     handles: [
       'Class and trial booking',
       'Membership pricing',

@@ -31,8 +31,9 @@ export default async function HowItWorksPage() {
           </Reveal>
           <Reveal delayMs={160}>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-snug tracking-tight text-slate-600">
-              No phone systems to learn, no scripts to write, no developers needed.
-              The wizard walks through it; the AI handles the heavy lifting.
+              No phone system to learn. No script to write. No developer to hire.
+              The wizard walks you through it... the AI handles everything else.
+              By the time your coffee&apos;s cold, your phone is ringing.
             </p>
           </Reveal>
         </div>
@@ -287,32 +288,32 @@ const STEPS = [
   {
     eyebrow: 'Step 1',
     title: 'Describe your business.',
-    body: 'Two sentences and your website URL are enough. The AI reads your services, opening hours, prices and tone — then drafts a receptionist that already sounds like you.',
+    body: 'Two sentences. A website URL. That&apos;s it. The AI reads every page you&apos;ve published — services, hours, prices, the awkward FAQs — and drafts a receptionist that already sounds like you. No forms. No long questionnaire. No tedious admin you&apos;ll abandon halfway.',
     bullets: [
       'Plain English — no fields to fill in',
-      'Reads your website, faqs and existing pages',
-      'You can edit anything it gets wrong',
+      'Reads your website, FAQs and existing pages',
+      'Edit anything the AI gets wrong before going live',
     ],
     mockup: 'describe' as const,
   },
   {
     eyebrow: 'Step 2',
     title: 'Pick a voice.',
-    body: 'Four production-grade voices, all preview-able in one tap. Pick the one your customers will be most comfortable hearing. Switch later if you want.',
+    body: 'Four production voices. Each one preview-able in a single tap. Pick the one your customers will be most comfortable hearing... and switch later if a different one tests better. No cloning. No deepfakes. No American accents on British plumbers.',
     bullets: [
       'Friendly · Professional · Calm · Confident',
       'Natural pauses and back-channelling',
-      'UK English — not American',
+      'UK English voices only — by default',
     ],
     mockup: 'voice' as const,
   },
   {
     eyebrow: 'Step 3',
     title: 'Get a phone number.',
-    body: 'Choose a local-feeling UK number in the area code your customers expect. Point your existing line to it, or use it as a new dedicated number.',
+    body: 'Pick a local UK number in the area code your customers expect. Forward your existing line to it with one command from your carrier... or use it as a fresh dedicated number. Live the moment your subscription starts. No SIM cards. No engineer visit.',
     bullets: [
       'London, Manchester, Birmingham — any UK area code',
-      'Forward your existing number with a single command from your carrier',
+      'Forward your existing number in one carrier command',
       'Live the moment your subscription starts',
     ],
     mockup: 'number' as const,
@@ -320,7 +321,7 @@ const STEPS = [
   {
     eyebrow: 'Step 4',
     title: 'Watch it answer.',
-    body: 'Every call is recorded, transcribed, and summarised. Lead details land in your inbox or your CRM the moment the caller hangs up. You sleep, it answers.',
+    body: 'Every call recorded. Every word transcribed. Every lead summarised and dropped into your inbox the second the caller hangs up. No call notes to type. No callbacks to chase. You sleep. It answers. You wake up to bookings.',
     bullets: [
       'Real-time call dashboard',
       'Audio recordings stored 90 days',
@@ -334,17 +335,17 @@ const AFTER_CALL = [
   {
     icon: <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 11a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3z" /></svg>,
     title: 'Transcript on file',
-    body: 'Every call gets a full transcript in your dashboard. Search across them by keyword or caller. Audit-friendly.',
+    body: 'Every call gets a word-for-word transcript in your dashboard. Search across them by keyword or caller. Audit-friendly... dispute-proof.',
   },
   {
     icon: <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5"><path d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm10 1H7v2h6V6zM7 10v2h6v-2H7z" /></svg>,
     title: 'Summary in your inbox',
-    body: 'A one-paragraph summary lands in your email seconds after the caller hangs up. Reason, decision, next step — done.',
+    body: 'A one-paragraph summary lands in your email seconds after the caller hangs up. Reason. Decision. Next step. Done. No call notes to write.',
   },
   {
     icon: <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5"><path d="M4 4a2 2 0 012-2h6.5a2 2 0 011.4.6L17 5.6V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm9 0v3a1 1 0 001 1h3" /></svg>,
     title: 'Booked into your calendar',
-    body: 'For appointment-based businesses, the receptionist offers slots from your real calendar and confirms the booking on the call.',
+    body: 'The receptionist offers slots from your real calendar and confirms the booking on the call. No double bookings. No “I’ll check and call you back.”',
   },
 ];
 

@@ -34,8 +34,9 @@ export default async function PricingPage() {
           </Reveal>
           <Reveal delayMs={160}>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-snug tracking-tight text-slate-600">
-              No setup fees. No per-minute charges. No tiers or feature gates.
-              Cancel from your dashboard at any time, in two clicks.
+              No setup fee. No per-minute charges. No tiers. No feature gates.
+              No three-month contract. Two clicks from your dashboard cancels it...
+              and you keep service until the end of the month you paid for.
             </p>
           </Reveal>
         </div>
@@ -103,14 +104,16 @@ export default async function PricingPage() {
           </Reveal>
           <Reveal delayMs={80}>
             <h2 className="display-headline-sm mt-4 max-w-2xl text-4xl text-slate-900 md:text-6xl">
-              {price} buys back one missed call.
+              One booked job a month.<br />
+              <span className="text-slate-400">That&apos;s the maths.</span>
             </h2>
           </Reveal>
           <Reveal delayMs={160}>
             <p className="mt-6 max-w-2xl text-base leading-snug tracking-tight text-slate-600 md:text-lg">
-              The average new customer is worth far more than that. Most businesses miss
-              20% of inbound calls — evenings, weekends, lunch hours, busy spells.
-              Capture even one of them per month and the receptionist pays for itself.
+              The average UK SMB misses one in five inbound calls. Evenings. Weekends.
+              Lunch. Busy spells. The school run. Each one a customer who dialled the
+              next name in Google before you could call back. Catch one of them per
+              month... and the receptionist&apos;s already paid for itself twice over.
             </p>
           </Reveal>
 
@@ -184,8 +187,8 @@ export default async function PricingPage() {
           </Reveal>
           <Reveal delayMs={120}>
             <p className="mx-auto mt-5 max-w-xl text-base leading-snug tracking-tight text-slate-600 md:text-lg">
-              Twelve minutes from now your phone could be answering itself.
-              Start free, only pay when you go live.
+              Twelve minutes from now... your phone could be answering itself.
+              Start free. Only pay when you go live. Cancel any time.
             </p>
           </Reveal>
           <Reveal delayMs={200}>
@@ -220,27 +223,27 @@ const INCLUDED = [
 
 const ROI_CARDS = [
   {
-    stat: '~20%',
-    title: 'Calls missed by SMBs',
-    body: 'The industry average. Evenings, weekends, and busy spells alone account for most of it.',
+    stat: '1 in 5',
+    title: 'Calls you’re missing',
+    body: 'Evenings. Weekends. Lunch. The school run. The job already on site. Each ring you don’t reach... is someone calling the next name on Google.',
   },
   {
     stat: '8 in 10',
-    title: 'Callers won’t leave voicemail',
-    body: 'They hang up and dial the next business in the search results. You never know they tried.',
+    title: 'Won’t leave a voicemail',
+    body: 'They hang up. They scroll. They book your competitor. And you never know they tried. Voicemail isn’t a safety net — it’s a leak.',
   },
   {
     stat: '£0',
-    title: 'Setup, hardware, contracts',
-    body: 'No phone systems to buy, no minimum term, no per-minute charges. Run it for a month and stop if it isn’t for you.',
+    title: 'Setup. Hardware. Contracts.',
+    body: 'No phone system to buy. No minimum term. No per-minute charges. Run it for a month and stop if it isn’t for you... no questions asked.',
   },
 ];
 
 const COMPARE_ROWS = [
   { option: 'Live receptionist (part-time)', hours: 'Mon–Fri, 9–5', cost: '£900+', highlight: false },
-  { option: 'Answering service', hours: '24/7', cost: '£250–£600', highlight: false },
-  { option: 'Voicemail', hours: '24/7 (but ignored)', cost: '£0', highlight: false },
-  { option: 'AI receptionist', hours: '24/7', cost: '__price__', highlight: true },
+  { option: 'Answering service', hours: '24/7 (reads a script)', cost: '£250–£600', highlight: false },
+  { option: 'Voicemail', hours: '24/7 (8 in 10 hang up)', cost: '£0', highlight: false },
+  { option: 'This AI receptionist', hours: '24/7 (books the job)', cost: '__price__', highlight: true },
 ];
 
 function ArrowIcon() {
