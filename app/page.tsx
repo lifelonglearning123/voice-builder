@@ -16,25 +16,32 @@ export default async function HomePage() {
 
   const samples: AudioSample[] = [
     {
-      id: 'plumber',
-      label: 'Emergency call-out',
+      id: 'electrical',
+      label: 'Electrical job booked',
       description:
-        '6:42pm — a customer with a burst pipe gets booked in for first thing tomorrow, with the engineer notified.',
-      src: '/voice-samples/marketing/plumber.mp3',
+        'A homeowner rings about an electrical fault. The AI triages the issue, captures the address, and drops the job straight into the diary.',
+      src: '/voice-samples/marketing/electrical.wav',
     },
     {
-      id: 'dental',
-      label: 'New patient enquiry',
+      id: 'estate',
+      label: 'Estate-agent viewing',
       description:
-        'A first-time patient asks about Invisalign, gets pricing, and books a consultation — all without reception.',
-      src: '/voice-samples/marketing/dental.mp3',
+        'An applicant calls about a listing. The AI checks availability, books the viewing, and confirms it back — no human on the line.',
+      src: '/voice-samples/marketing/estate.wav',
     },
     {
-      id: 'agency',
-      label: 'After-hours lead',
+      id: 'ecommerce',
+      label: 'Ecommerce support',
       description:
-        'Wednesday 10:14pm — a serious enquiry gets qualified, captured, and emailed to sales before the team starts work.',
-      src: '/voice-samples/marketing/agency.mp3',
+        'A Catnip customer asks about an order. The AI handles the query end-to-end — order lookup, resolution, sign-off.',
+      src: '/voice-samples/marketing/ecommerce-support.wav',
+    },
+    {
+      id: 'cold-call',
+      label: 'Cold-call filter',
+      description:
+        'An unsolicited sales call comes in. The AI politely identifies it, declines, and keeps the line free for real customers.',
+      src: '/voice-samples/marketing/cold-call-filter.wav',
     },
   ];
 
@@ -224,6 +231,53 @@ export default async function HomePage() {
               imageRight={false}
             />
           </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+       *  CUSTOMER VIDEOS
+       * ============================================================ */}
+      <section className="relative overflow-hidden bg-slate-50">
+        <div className="mx-auto max-w-7xl px-6 py-28">
+          <Reveal>
+            <p className="font-mono-tight text-[11px] uppercase tracking-[0.22em] text-slate-500">
+              Real customers
+            </p>
+          </Reveal>
+          <Reveal delayMs={80}>
+            <h2 className="display-headline-sm mt-4 max-w-3xl text-4xl text-slate-900 md:text-6xl">
+              In their own words.<br />
+              <span className="text-slate-400">Not ours.</span>
+            </h2>
+          </Reveal>
+
+          <RevealGroup className="mt-14 grid gap-6 md:grid-cols-2">
+            {TESTIMONIALS.map((t) => (
+              <Reveal key={t.src}>
+                <div className="marketing-card overflow-hidden p-0">
+                  <div className="relative aspect-video w-full bg-slate-900">
+                    <video
+                      src={t.src}
+                      controls
+                      preload="metadata"
+                      className="h-full w-full"
+                    />
+                  </div>
+                  <div className="p-6">
+                    <p className="font-mono-tight text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                      {t.role}
+                    </p>
+                    <p className="mt-2 text-base font-semibold tracking-tight text-slate-900">
+                      {t.name}
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed tracking-tight text-slate-600">
+                      {t.quote}
+                    </p>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </RevealGroup>
         </div>
       </section>
 
@@ -530,6 +584,37 @@ const STEPS = [
   {
     title: 'Watch it answer',
     body: 'Every call recorded. Every word transcribed. Every lead in your inbox the second the caller hangs up. You sleep. It answers.',
+  },
+];
+
+const TESTIMONIALS = [
+  {
+    name: 'Chris Grean',
+    role: 'Real estate',
+    quote:
+      'On the road all day showing properties. The AI catches the calls I used to lose to voicemail — and books the viewings before I’m back in the office.',
+    src: '/videos/chris-grean-real-estate.mp4',
+  },
+  {
+    name: 'Mark',
+    role: 'Butcher',
+    quote:
+      'Saturday mornings are mayhem behind the counter. Now the phone answers itself, takes the order, and we ring back when the queue clears.',
+    src: '/videos/mark-butcher.mp4',
+  },
+  {
+    name: 'Hellendean',
+    role: 'Consultant',
+    quote:
+      'I’m in back-to-back client sessions. The receptionist qualifies enquiries and books discovery calls without me ever touching the phone.',
+    src: '/videos/hellendean-consultant.mp4',
+  },
+  {
+    name: 'Customer interview',
+    role: 'Five concurrent calls',
+    quote:
+      'It picked up five calls at once on a busy lunchtime. No engaged tone. No missed leads. That alone has paid for itself.',
+    src: '/videos/concurrent-calls-interview.mp4',
   },
 ];
 

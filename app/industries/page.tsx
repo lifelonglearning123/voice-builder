@@ -78,17 +78,25 @@ export default async function IndustriesPage() {
                     ))}
                   </ul>
 
-                  <div className="mt-6 flex items-center justify-between">
-                    <p className="text-[11px] tracking-tight text-slate-500">
-                      Sample call · {ind.sampleDuration}
-                    </p>
-                    <a
-                      href={`/voice-samples/marketing/${ind.slug}.mp3`}
-                      className="inline-flex items-center gap-1 text-xs font-medium tracking-tight text-slate-900 hover:opacity-70"
-                    >
-                      Listen <ArrowIcon />
-                    </a>
-                  </div>
+                  {ind.audioSrc ? (
+                    <div className="mt-6 flex items-center justify-between">
+                      <p className="text-[11px] tracking-tight text-slate-500">
+                        Sample call
+                      </p>
+                      <a
+                        href={ind.audioSrc}
+                        className="inline-flex items-center gap-1 text-xs font-medium tracking-tight text-slate-900 hover:opacity-70"
+                      >
+                        Listen <ArrowIcon />
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="mt-6">
+                      <p className="text-[11px] tracking-tight text-slate-400">
+                        Sample call · coming soon
+                      </p>
+                    </div>
+                  )}
                 </div>
               </Reveal>
             ))}
@@ -146,7 +154,6 @@ const INDUSTRIES = [
       'Address and postcode capture',
       'Day-rate quoting',
     ],
-    sampleDuration: '1:14',
     icon: <Icon path="M11 3v6h5l-7 12v-7H4l7-11z" />,
   },
   {
@@ -158,7 +165,6 @@ const INDUSTRIES = [
       'Pricing for common treatments',
       'Online consultation booking',
     ],
-    sampleDuration: '1:32',
     icon: <Icon path="M10 2c-2.5 0-4 1.5-4 4 0 1.5.5 2.5 1 4 .5 1.5 1 3 1.5 5 .25 1 .75 1.5 1.5 1.5s1.25-.5 1.5-1.5c.5-2 1-3.5 1.5-5 .5-1.5 1-2.5 1-4 0-2.5-1.5-4-4-4z" />,
   },
   {
@@ -170,7 +176,7 @@ const INDUSTRIES = [
       'Property reference matching',
       'Viewing slot booking',
     ],
-    sampleDuration: '1:48',
+    audioSrc: '/voice-samples/marketing/estate.wav',
     icon: <Icon path="M3 9l7-6 7 6v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />,
   },
   {
@@ -182,7 +188,6 @@ const INDUSTRIES = [
       'Conflict-check intake',
       'Consultation booking',
     ],
-    sampleDuration: '1:56',
     icon: <Icon path="M10 3l7 4-7 4-7-4 7-4zM3 11l7 4 7-4M3 15l7 4 7-4" />,
   },
   {
@@ -194,7 +199,6 @@ const INDUSTRIES = [
       'Gift voucher and package sales',
       'Last-minute availability check',
     ],
-    sampleDuration: '1:08',
     icon: <Icon path="M4 12a6 6 0 0112 0v4H4v-4z M10 4v2" />,
   },
   {
@@ -206,7 +210,7 @@ const INDUSTRIES = [
       'Site address and access capture',
       'Diary slot booking',
     ],
-    sampleDuration: '1:22',
+    audioSrc: '/voice-samples/marketing/electrical.wav',
     icon: <Icon path="M7 3l3 3-7 7 3 3 7-7 3 3 4-4-9-9-4 4z" />,
   },
   {
@@ -218,7 +222,6 @@ const INDUSTRIES = [
       'Pet records and history capture',
       'Appointment booking',
     ],
-    sampleDuration: '1:18',
     icon: <Icon path="M5 8a2 2 0 114 0 2 2 0 01-4 0zm6 0a2 2 0 114 0 2 2 0 01-4 0zM7 14c0-1.5 1.5-3 3-3s3 1.5 3 3v2H7v-2z" />,
   },
   {
@@ -230,7 +233,6 @@ const INDUSTRIES = [
       'Industry and size capture',
       'Discovery-call booking',
     ],
-    sampleDuration: '2:04',
     icon: <Icon path="M3 5h14v10H3z M7 9h6v2H7z" />,
   },
   {
@@ -242,7 +244,6 @@ const INDUSTRIES = [
       'Membership pricing',
       'Personal trainer enquiries',
     ],
-    sampleDuration: '1:12',
     icon: <Icon path="M3 9h2V7H3v2zm12 0h2V7h-2v2zM5 11h10V9H5v2zM2 9h1m14 0h1" />,
   },
 ];
