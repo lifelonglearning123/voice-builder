@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
   const { data: agency } = await service
     .from('agencies')
-    .select('from_email, from_name, brand_color')
+    .select('from_email, from_name, brand_color, ghl_location_id, ghl_api_token')
     .eq('id', bot.agency_id)
     .single();
   if (!agency?.from_email || !agency?.from_name) {
@@ -87,6 +87,8 @@ export async function POST(request: Request) {
         from_email: agency.from_email,
         from_name: agency.from_name,
         brand_color: agency.brand_color ?? null,
+        ghl_location_id: agency.ghl_location_id ?? null,
+        ghl_api_token: agency.ghl_api_token ?? null,
       },
       businessName: draft?.business_name || 'Your AI receptionist',
       phoneE164: bot.phone_e164 ?? null,

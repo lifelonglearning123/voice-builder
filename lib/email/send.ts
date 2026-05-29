@@ -1,8 +1,15 @@
 import { Resend } from 'resend';
+import { sendEmailViaGhl, type GhlConfig } from './ghl';
 
-// Single Resend client for the whole process. Macaws' Resend account; agencies
-// share it but use different verified sender domains (configured per-agency
-// via vb.agencies.from_email).
+// Transactional email transport.
+//
+// GHL (GoHighLevel) is the primary transport. Resolution order:
+//   1. Per-agency config on the agency row (ghl_location_id + ghl_api_token)
+//   2. Platform-wide env vars GHL_LOCATION_ID + GHL_API_TOKEN (quick setup
+//      for single-tenant / default-agency deployments)
+//   3. Resend fallback — used when neither GHL config is present, or when
+//      a GHL send threw (network blip, expired token). Logged loudly so
+//      misconfiguration doesn't get silently masked.
 
 let cached: Resend | null = null;
 
@@ -23,9 +30,41 @@ export interface SendEmailArgs {
   subject: string;
   html: string;
   text: string;
+  /** When set, attempt GHL delivery first; fall through to Resend on failure. */
+  ghl?: GhlConfig | null;
 }
 
 export async function sendEmail(args: SendEmailArgs): Promise<void> {
+  const ghl = args.ghl ?? envGhlConfig();
+  if (ghl?.locationId && ghl?.apiToken) {
+    try {
+      await sendEmailViaGhl(ghl, {
+        to: args.to,
+        subject: args.subject,
+        html: args.html,
+        text: args.text,
+        fromEmail: args.fromEmail,
+        fromName: args.fromName,
+      });
+      return;
+    } catch (e) {
+      console.error('[email] GHL send failed, falling back to Resend:', e);
+      // Fall through to Resend.
+    }
+  }
+
+  // Resend fallback (or primary, when GHL isn't configured at all).
+  await sendViaResend(args);
+}
+
+function envGhlConfig(): GhlConfig | null {
+  const locationId = process.env.GHL_LOCATION_ID;
+  const apiToken = process.env.GHL_API_TOKEN;
+  if (!locationId || !apiToken) return null;
+  return { locationId, apiToken };
+}
+
+async function sendViaResend(args: SendEmailArgs): Promise<void> {
   const resend = getResend();
   const { data, error } = await resend.emails.send({
     from: `${args.fromName} <${args.fromEmail}>`,

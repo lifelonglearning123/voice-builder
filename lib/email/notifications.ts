@@ -14,6 +14,17 @@ interface AgencyBrand {
   from_email: string;
   from_name: string;
   brand_color?: string | null;
+  /** Optional GHL Private Integration Token + location. When both are set,
+   *  sendEmail routes through GHL first and falls back to Resend on failure. */
+  ghl_location_id?: string | null;
+  ghl_api_token?: string | null;
+}
+
+function ghlConfig(agency: AgencyBrand) {
+  if (agency.ghl_location_id && agency.ghl_api_token) {
+    return { locationId: agency.ghl_location_id, apiToken: agency.ghl_api_token };
+  }
+  return null;
 }
 
 interface WelcomeArgs {
@@ -31,6 +42,7 @@ export async function sendWelcomeEmail(args: WelcomeArgs): Promise<void> {
     subject: `Your AI receptionist is live`,
     html: welcomeHtml(args),
     text: welcomeText(args),
+    ghl: ghlConfig(args.agency),
   });
 }
 
@@ -49,6 +61,7 @@ export async function sendPaymentFailedEmail(args: PaymentFailedArgs): Promise<v
     subject: `Action needed: payment failed for ${args.businessName}`,
     html: paymentFailedHtml(args),
     text: paymentFailedText(args),
+    ghl: ghlConfig(args.agency),
   });
 }
 

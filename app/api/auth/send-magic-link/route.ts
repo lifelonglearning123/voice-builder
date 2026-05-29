@@ -108,6 +108,10 @@ export async function POST(request: Request) {
         url: data.properties.action_link,
         agencyName: agency.from_name,
       }),
+      ghl:
+        agency.ghl_location_id && agency.ghl_api_token
+          ? { locationId: agency.ghl_location_id, apiToken: agency.ghl_api_token }
+          : null,
     });
   } catch (e) {
     console.error('[send-magic-link] send failed:', e);

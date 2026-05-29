@@ -183,7 +183,7 @@ async function sendPaymentFailedIfPossible(
     service.auth.admin.getUserById(bot.owner_user_id),
     service
       .from('agencies')
-      .select('from_email, from_name, brand_color, custom_domain')
+      .select('from_email, from_name, brand_color, custom_domain, ghl_location_id, ghl_api_token')
       .eq('id', bot.agency_id)
       .single(),
   ]);
@@ -201,6 +201,8 @@ async function sendPaymentFailedIfPossible(
       from_email: agency.from_email,
       from_name: agency.from_name,
       brand_color: agency.brand_color ?? null,
+      ghl_location_id: agency.ghl_location_id ?? null,
+      ghl_api_token: agency.ghl_api_token ?? null,
     },
     businessName: draft?.business_name || 'your AI receptionist',
     manageBillingUrl: `${baseUrl}/dashboard`,

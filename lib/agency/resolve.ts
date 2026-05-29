@@ -26,6 +26,8 @@ export interface AgencyRow {
   client_currency: string | null;
   from_email: string | null;
   from_name: string | null;
+  ghl_location_id: string | null;
+  ghl_api_token: string | null;
 }
 
 export async function resolveAgency(opts: {
