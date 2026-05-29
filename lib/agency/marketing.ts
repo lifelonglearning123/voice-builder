@@ -40,17 +40,47 @@ export async function getMarketingAgency(opts?: {
   const h = await headers();
   const host = h.get('host');
   const row = await resolveAgency({ host, querySlug: opts?.querySlug ?? null });
-  if (!row) return FALLBACK;
+  const overrides = readEnvOverrides();
+
+  if (!row) {
+    return {
+      ...FALLBACK,
+      name: overrides.name ?? FALLBACK.name,
+      logoUrl: overrides.logoUrl ?? FALLBACK.logoUrl,
+      brandColor: overrides.brandColor ?? FALLBACK.brandColor,
+      pricePence: overrides.pricePence ?? FALLBACK.pricePence,
+      currency: overrides.currency ?? FALLBACK.currency,
+    };
+  }
 
   return {
     id: row.id,
-    name: row.name,
-    logoUrl: row.brand_logo_url,
-    brandColor: normaliseHex(row.brand_color) ?? FALLBACK.brandColor,
-    pricePence: row.client_price_pence ?? FALLBACK.pricePence,
-    currency: (row.client_currency ?? FALLBACK.currency).toUpperCase(),
+    name: overrides.name ?? row.name,
+    logoUrl: overrides.logoUrl ?? row.brand_logo_url,
+    brandColor:
+      overrides.brandColor ?? normaliseHex(row.brand_color) ?? FALLBACK.brandColor,
+    pricePence: overrides.pricePence ?? row.client_price_pence ?? FALLBACK.pricePence,
+    currency: (overrides.currency ?? row.client_currency ?? FALLBACK.currency).toUpperCase(),
     isFallback: false,
   };
+}
+
+interface EnvOverrides {
+  name: string | null;
+  logoUrl: string | null;
+  brandColor: string | null;
+  pricePence: number | null;
+  currency: string | null;
+}
+
+function readEnvOverrides(): EnvOverrides {
+  const name = process.env.DEFAULT_BRAND_NAME?.trim() || null;
+  const logoUrl = process.env.DEFAULT_BRAND_LOGO_URL?.trim() || null;
+  const brandColor = normaliseHex(process.env.DEFAULT_BRAND_COLOR?.trim() ?? null);
+  const priceRaw = process.env.DEFAULT_BRAND_PRICE_PENCE?.trim();
+  const pricePence = priceRaw && /^\d+$/.test(priceRaw) ? parseInt(priceRaw, 10) : null;
+  const currency = process.env.DEFAULT_BRAND_CURRENCY?.trim().toUpperCase() || null;
+  return { name, logoUrl, brandColor, pricePence, currency };
 }
 
 // Format pence as a price string (£99 / $99). Drops the .00 when whole.

@@ -282,55 +282,6 @@ export default async function HomePage() {
       </section>
 
       {/* ============================================================
-       *  INDUSTRIES TEASER
-       * ============================================================ */}
-      <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-6 py-28">
-          <Reveal>
-            <p className="font-mono-tight text-[11px] uppercase tracking-[0.22em] text-slate-500">
-              Industries
-            </p>
-          </Reveal>
-          <Reveal delayMs={80}>
-            <h2 className="display-headline-sm mt-4 max-w-3xl text-4xl text-slate-900 md:text-6xl">
-              Plumbing. Dentistry.<br />
-              Lettings. Law.<br />
-              <span className="text-slate-400">It already knows the script.</span>
-            </h2>
-          </Reveal>
-
-          <RevealGroup className="mt-14 grid grid-cols-2 gap-3 md:grid-cols-4">
-            {INDUSTRIES_TEASER.map((ind) => (
-              <Reveal key={ind.label}>
-                <Link
-                  href={'/industries' as never}
-                  className="marketing-card flex items-center justify-between p-5"
-                >
-                  <span className="text-sm font-medium tracking-tight text-slate-900">
-                    {ind.label}
-                  </span>
-                  <span className="text-slate-400">
-                    <ArrowIcon />
-                  </span>
-                </Link>
-              </Reveal>
-            ))}
-          </RevealGroup>
-
-          <Reveal delayMs={200}>
-            <div className="mt-10">
-              <Link
-                href={'/industries' as never}
-                className="inline-flex items-center gap-1.5 text-sm font-medium tracking-tight text-slate-900 hover:opacity-70"
-              >
-                Explore all industries <ArrowIcon />
-              </Link>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ============================================================
        *  PRICING CARD
        * ============================================================ */}
       <section className="bg-white">
@@ -616,15 +567,4 @@ const TESTIMONIALS = [
       'It picked up five calls at once on a busy lunchtime. No engaged tone. No missed leads. That alone has paid for itself.',
     src: '/videos/concurrent-calls-interview.mp4',
   },
-];
-
-const INDUSTRIES_TEASER = [
-  { label: 'Plumbing & heating' },
-  { label: 'Dental practices' },
-  { label: 'Estate agents' },
-  { label: 'Law firms' },
-  { label: 'Beauty & spa' },
-  { label: 'Trades & contractors' },
-  { label: 'Vet practices' },
-  { label: 'Agencies' },
 ];

@@ -8,13 +8,12 @@ interface MarketingShellProps {
   /** If signed in, the top-right CTA points to /dashboard instead of /signup. */
   signedIn: boolean;
   /** Active nav route — adds an underline / weight to the matching link. */
-  activeRoute?: 'home' | 'how' | 'industries' | 'pricing' | 'faq';
+  activeRoute?: 'home' | 'how' | 'pricing' | 'faq';
   children: ReactNode;
 }
 
 const NAV: Array<{ key: NonNullable<MarketingShellProps['activeRoute']>; label: string; href: string }> = [
   { key: 'how', label: 'How it works', href: '/how-it-works' },
-  { key: 'industries', label: 'Industries', href: '/industries' },
   { key: 'pricing', label: 'Pricing', href: '/pricing' },
   { key: 'faq', label: 'FAQ', href: '/faq' },
 ];
@@ -146,7 +145,6 @@ function Footer({ agency }: { agency: MarketingAgency }) {
           </p>
           <ul className="mt-4 space-y-2 text-sm">
             <li><Link href={'/how-it-works' as never} className="text-slate-600 hover:text-slate-900">How it works</Link></li>
-            <li><Link href={'/industries' as never} className="text-slate-600 hover:text-slate-900">Industries</Link></li>
             <li><Link href={'/pricing' as never} className="text-slate-600 hover:text-slate-900">Pricing</Link></li>
             <li><Link href={'/faq' as never} className="text-slate-600 hover:text-slate-900">FAQ</Link></li>
           </ul>
