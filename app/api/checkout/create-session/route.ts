@@ -120,7 +120,8 @@ export async function POST(request: Request) {
       const codes = await stripe.promotionCodes.list({
         code: rawPromo,
         active: true,
-        expand: ['data.coupon'],
+        // SDK nests the coupon under `promotion.coupon`.
+        expand: ['data.promotion.coupon'],
         limit: 1,
       });
       const pc = codes.data[0];
@@ -130,8 +131,17 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+      const rawCoupon = pc.promotion.coupon;
+      // Expanded coupon should be an object; reject if the SDK gave us a
+      // string id or null (means we couldn't read the metadata).
+      if (!rawCoupon || typeof rawCoupon === 'string') {
+        return NextResponse.json(
+          { error: 'Promo code is misconfigured. Please contact support.' },
+          { status: 400 },
+        );
+      }
       const couponAgencyId =
-        (pc.coupon.metadata as Record<string, string> | null | undefined)?.agency_id ?? null;
+        (rawCoupon.metadata as Record<string, string> | null | undefined)?.agency_id ?? null;
       if (couponAgencyId !== agency.id) {
         return NextResponse.json(
           { error: 'This promo code isn’t valid for this workspace.' },

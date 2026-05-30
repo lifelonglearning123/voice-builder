@@ -79,19 +79,21 @@ export async function GET(request: Request) {
   try {
     // Stripe doesn't support filtering coupons by metadata. List promotion
     // codes (smaller per-agency volume in practice) and filter client-side.
+    // Note: the SDK nests the coupon under `promotion.coupon`; expansion path
+    // must match.
     const codes = await stripe.promotionCodes.list({
       limit: 100,
-      expand: ['data.coupon'],
+      expand: ['data.promotion.coupon'],
     });
 
     const coupons = codes.data
-      .filter((pc) => {
-        const coupon = pc.coupon as Stripe.Coupon;
-        const md = (coupon.metadata ?? null) as Record<string, string> | null;
-        return md?.agency_id === agencyId;
-      })
       .map((pc) => {
-        const coupon = pc.coupon as Stripe.Coupon;
+        const raw = pc.promotion.coupon;
+        // Skip if the coupon isn't expanded (string id) or is null.
+        if (!raw || typeof raw === 'string') return null;
+        const coupon = raw as Stripe.Coupon;
+        const md = (coupon.metadata ?? null) as Record<string, string> | null;
+        if (md?.agency_id !== agencyId) return null;
         return {
           promotion_code_id: pc.id,
           coupon_id: coupon.id,
@@ -106,7 +108,8 @@ export async function GET(request: Request) {
           times_redeemed: pc.times_redeemed,
           created: pc.created,
         };
-      });
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
 
     return NextResponse.json({ coupons });
   } catch (e) {
@@ -221,8 +224,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
+  // SDK schema: promotion is now wrapped under `promotion: { type, coupon }`
+  // rather than a top-level `coupon` field.
   const promoArgs: Stripe.PromotionCodeCreateParams = {
-    coupon: coupon.id,
+    promotion: { type: 'coupon', coupon: coupon.id },
     code,
   };
   if (body.max_redemptions != null && body.max_redemptions > 0) {
