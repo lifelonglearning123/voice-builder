@@ -192,12 +192,19 @@ export async function POST(request: Request) {
         // Connect routing: send funds to the agency's Connect account, no
         // platform fee. When agency has no Connect account (Macaws), money
         // stays with the platform Stripe.
+        //
+        // `on_behalf_of` tells Stripe to treat the connected account as the
+        // merchant of record for the charge — drives the business name shown
+        // on Stripe Checkout, statement descriptors, and the customer receipt.
+        // Without it, the customer sees the platform brand (Macaws) even when
+        // funds route to the agency.
         ...(useConnect
           ? {
               transfer_data: {
                 destination: agency.stripe_connect_account_id!,
               },
               application_fee_percent: 0,
+              on_behalf_of: agency.stripe_connect_account_id!,
             }
           : {}),
       },

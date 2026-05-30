@@ -39,6 +39,10 @@ export default function Step10Page() {
   const [state, setState] = useState<ActivateState>({ kind: 'idle' });
   const [subStatus, setSubStatus] = useState<string | null>(null);
   const [checkoutBanner, setCheckoutBanner] = useState<string | null>(null);
+  // Promo code that the customer enters (or that we pre-fill from ?promo= in
+  // the URL). Validated server-side against agency_id metadata.
+  const [promoCode, setPromoCode] = useState<string>('');
+  const [showPromoField, setShowPromoField] = useState<boolean>(false);
 
   useEffect(() => {
     if (status === 'idle' && !draft) {
@@ -73,6 +77,18 @@ export default function Step10Page() {
       setCheckoutBanner('Something went wrong returning from checkout. Please try again.');
     // Strip the query param from the URL so it doesn't linger on refresh.
     window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+
+  // Pre-fill the promo field from ?promo= in the URL (so agencies can share
+  // shareable discount links). The field stays visible when pre-filled so the
+  // customer sees what was applied.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const fromUrl = new URLSearchParams(window.location.search).get('promo')?.trim();
+    if (fromUrl) {
+      setPromoCode(fromUrl.toUpperCase());
+      setShowPromoField(true);
+    }
   }, []);
 
   const compiled = useMemo(() => {
@@ -111,18 +127,16 @@ export default function Step10Page() {
       if (!botId) return;
       setState({ kind: 'deploying' });
       try {
-        // Forward an optional ?promo=… URL param. Server validates it's
+        // The promo field (UI below) carries either a user-entered code or
+        // a pre-fill from the ?promo= URL param. Server validates it's
         // scoped to this agency before applying.
-        const promoCode =
-          typeof window !== 'undefined'
-            ? new URLSearchParams(window.location.search).get('promo')?.trim() || null
-            : null;
+        const trimmedPromo = promoCode.trim();
         const res = await fetch('/api/checkout/create-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             bot_id: botId,
-            ...(promoCode ? { promo_code: promoCode } : {}),
+            ...(trimmedPromo ? { promo_code: trimmedPromo } : {}),
           }),
         });
         const data = await res.json();
@@ -319,6 +333,36 @@ export default function Step10Page() {
               <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
                 <p className="font-medium">Activation didn&apos;t go through</p>
                 <p className="mt-1 text-xs">{state.message}</p>
+              </div>
+            )}
+
+            {subStatus !== 'active' && subStatus !== 'trialing' && (
+              <div>
+                {showPromoField ? (
+                  <div className="rounded-md border border-slate-200 bg-white p-4">
+                    <label className="font-mono-tight text-[11px] tracking-[0.18em] uppercase text-slate-400">
+                      Promo code
+                    </label>
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      placeholder="EARLY20"
+                      className="mt-2 block w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm uppercase tracking-wide text-slate-900 focus:border-slate-500 focus:outline-none"
+                    />
+                    <p className="mt-1.5 text-xs text-slate-400">
+                      Applied at checkout. Leave blank if you don&apos;t have one.
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowPromoField(true)}
+                    className="text-xs font-medium text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline"
+                  >
+                    Have a promo code?
+                  </button>
+                )}
               </div>
             )}
 
