@@ -111,10 +111,19 @@ export default function Step10Page() {
       if (!botId) return;
       setState({ kind: 'deploying' });
       try {
+        // Forward an optional ?promo=… URL param. Server validates it's
+        // scoped to this agency before applying.
+        const promoCode =
+          typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('promo')?.trim() || null
+            : null;
         const res = await fetch('/api/checkout/create-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bot_id: botId }),
+          body: JSON.stringify({
+            bot_id: botId,
+            ...(promoCode ? { promo_code: promoCode } : {}),
+          }),
         });
         const data = await res.json();
         if (!res.ok || !data.url) {

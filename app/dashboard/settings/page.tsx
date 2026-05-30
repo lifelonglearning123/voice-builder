@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { BrandingForm } from '@/components/dashboard/BrandingForm';
+import { CouponsSection } from '@/components/dashboard/CouponsSection';
 
 // /dashboard/settings — agency staff only.
 //
@@ -158,6 +159,13 @@ export default async function AgencySettingsPage({
             </p>
           )}
         </section>
+
+        {canManage && (
+          <CouponsSection
+            agencyId={agency.id}
+            defaultCurrency={agency.client_currency ?? 'GBP'}
+          />
+        )}
       </div>
     </main>
   );
