@@ -477,6 +477,10 @@ function IndustryCombobox({
       if (open && filtered[activeIndex]) {
         e.preventDefault();
         pick(filtered[activeIndex].label);
+      } else if (open && filtered.length === 0 && value.trim()) {
+        // No match — confirm the custom value the user typed and close.
+        e.preventDefault();
+        pick(value.trim());
       }
     } else if (e.key === 'Escape') {
       setOpen(false);
@@ -515,9 +519,21 @@ function IndustryCombobox({
           className="absolute z-20 mt-2 max-h-80 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
         >
           {filtered.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-slate-400">
-              No match — we&apos;ll use &ldquo;{value}&rdquo; as your industry.
-            </div>
+            <button
+              type="button"
+              role="option"
+              aria-selected
+              onClick={() => pick(value.trim())}
+              className="flex w-full items-center justify-between gap-3 bg-slate-100 px-4 py-2 text-left text-sm text-slate-900"
+            >
+              <span className="flex items-center gap-2">
+                <span aria-hidden className="text-slate-400">+</span>
+                <span>
+                  Use &ldquo;<span className="font-medium">{value.trim()}</span>&rdquo;
+                </span>
+              </span>
+              <span className="text-[11px] text-slate-400">Custom</span>
+            </button>
           ) : showGrouped ? (
             (() => {
               let lastCategory = '';
