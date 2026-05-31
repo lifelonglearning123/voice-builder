@@ -82,5 +82,12 @@ function buildUserContent(req: PrefillRequest): string {
   if (req.website_url) {
     lines.push(`Website: ${req.website_url}`);
   }
+  if (req.knowledge_text && req.knowledge_text.trim()) {
+    lines.push('');
+    lines.push('Reference document (uploaded by the operator — extract services, FAQs, and guardrails from this where relevant; never invent specific prices, phone numbers, or addresses not present here):');
+    lines.push('"""');
+    lines.push(req.knowledge_text.trim());
+    lines.push('"""');
+  }
   return lines.join('\n');
 }

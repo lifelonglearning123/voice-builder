@@ -139,6 +139,8 @@ export default function NewBotPage() {
   const [description, setDescription] = useState('');
   const [industry, setIndustry] = useState('');
   const [website, setWebsite] = useState('');
+  const [knowledgeFile, setKnowledgeFile] = useState<File | null>(null);
+  const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
   const [view, setView] = useState<View>({ kind: 'idle' });
   const [elapsedMs, setElapsedMs] = useState(0);
   const stageTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -197,7 +199,10 @@ export default function NewBotPage() {
     });
   }
 
-  const stages = buildStages(Boolean(website.trim()));
+  const stages = buildStages({
+    hasWebsite: Boolean(website.trim()),
+    hasKnowledge: Boolean(knowledgeFile),
+  });
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
@@ -205,14 +210,16 @@ export default function NewBotPage() {
     scheduleStages();
     startElapsed();
     try {
+      // FormData is required when there's a file; we use it unconditionally so
+      // the API has one code path on the client.
+      const form = new FormData();
+      form.set('description', description);
+      if (industry) form.set('industry', industry);
+      if (website) form.set('website_url', website);
+      if (knowledgeFile) form.set('knowledge_file', knowledgeFile);
       const res = await fetch('/api/prefill', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description,
-          industry: industry || undefined,
-          website_url: website || undefined,
-        }),
+        body: form,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -296,6 +303,21 @@ export default function NewBotPage() {
                   onChange={(e) => setWebsite(e.target.value)}
                   placeholder="https://"
                   className="wizard-focus block w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 transition-colors placeholder:text-slate-400 focus:border-slate-500"
+                />
+              </FormField>
+
+              <FormField
+                label="Knowledge document"
+                htmlFor="knowledge_file"
+                hint="Optional — upload a PDF, .txt or .md with your service menu, price list, or policies. We'll extract FAQs and services for you to review."
+              >
+                <KnowledgeFileInput
+                  file={knowledgeFile}
+                  error={knowledgeError}
+                  onChange={(f, err) => {
+                    setKnowledgeFile(f);
+                    setKnowledgeError(err);
+                  }}
                 />
               </FormField>
 
@@ -593,6 +615,111 @@ function IndustryCombobox({
   );
 }
 
+// Client-side guards mirror the server cap so the user sees friendly errors
+// before we shuffle bytes over the network. The server still enforces.
+const KNOWLEDGE_MAX_BYTES = 10 * 1024 * 1024;
+const KNOWLEDGE_ACCEPT = '.pdf,.txt,.md,application/pdf,text/plain,text/markdown';
+
+function KnowledgeFileInput({
+  file,
+  error,
+  onChange,
+}: {
+  file: File | null;
+  error: string | null;
+  onChange: (file: File | null, error: string | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handlePick(picked: File | null) {
+    if (!picked) {
+      onChange(null, null);
+      return;
+    }
+    if (picked.size > KNOWLEDGE_MAX_BYTES) {
+      onChange(null, `That file is over ${KNOWLEDGE_MAX_BYTES / 1024 / 1024}MB. Try a smaller version.`);
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    const name = picked.name.toLowerCase();
+    const looksSupported =
+      picked.type === 'application/pdf' ||
+      picked.type === 'text/plain' ||
+      picked.type === 'text/markdown' ||
+      name.endsWith('.pdf') ||
+      name.endsWith('.txt') ||
+      name.endsWith('.md') ||
+      name.endsWith('.markdown');
+    if (!looksSupported) {
+      onChange(null, 'Unsupported file type. Upload a PDF, .txt or .md.');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    onChange(picked, null);
+  }
+
+  function clear() {
+    onChange(null, null);
+    if (inputRef.current) inputRef.current.value = '';
+  }
+
+  return (
+    <div>
+      {file ? (
+        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              aria-hidden
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200"
+            >
+              {fileBadge(file.name)}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-slate-900">{file.name}</p>
+              <p className="text-xs text-slate-400">{formatBytes(file.size)}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={clear}
+            className="ml-3 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
+          >
+            Remove
+          </button>
+        </div>
+      ) : (
+        <label
+          htmlFor="knowledge_file"
+          className="wizard-focus flex w-full cursor-pointer items-center justify-between rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3.5 text-base text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700"
+        >
+          <span>Choose a file</span>
+          <span className="text-xs uppercase tracking-wider text-slate-400">PDF · TXT · MD</span>
+        </label>
+      )}
+      <input
+        ref={inputRef}
+        id="knowledge_file"
+        type="file"
+        accept={KNOWLEDGE_ACCEPT}
+        className="sr-only"
+        onChange={(e) => handlePick(e.target.files?.[0] ?? null)}
+      />
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function fileBadge(name: string): string {
+  const ext = name.split('.').pop()?.toUpperCase() ?? 'FILE';
+  return ext.slice(0, 3);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function FormField({
   label,
   htmlFor,
@@ -748,13 +875,19 @@ function ReadyState({ onContinue }: { onContinue: () => void }) {
   );
 }
 
-function buildStages(hasWebsite: boolean): string[] {
-  return [
-    'Reading your description',
-    hasWebsite ? 'Studying your website' : 'Gathering industry context',
-    'Building receptionist personality',
-    'Setting up booking rules and FAQs',
-  ];
+function buildStages({
+  hasWebsite,
+  hasKnowledge,
+}: {
+  hasWebsite: boolean;
+  hasKnowledge: boolean;
+}): string[] {
+  const stages = ['Reading your description'];
+  if (hasKnowledge) stages.push('Reading your document');
+  stages.push(hasWebsite ? 'Studying your website' : 'Gathering industry context');
+  stages.push('Building receptionist personality');
+  stages.push('Setting up booking rules and FAQs');
+  return stages;
 }
 
 function formatElapsed(ms: number): string {

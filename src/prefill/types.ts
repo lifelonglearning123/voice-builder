@@ -92,6 +92,10 @@ export interface PrefillRequest {
   description: string;
   industry?: string;
   website_url?: string;
+  // Plain text extracted from an uploaded knowledge document (PDF, txt, md).
+  // The /api/prefill route handles extraction; callers below the API boundary
+  // pass the resolved text directly.
+  knowledge_text?: string;
 }
 
 export interface PrefillResult {
