@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useWizard } from '@/lib/wizard/context.tsx';
+import { wizardStep } from '@/lib/wizard/steps.ts';
 import type { PrefilledBot } from '@/src/prefill/types.ts';
 
 type IndustryGroup = { category: string; items: string[] };
@@ -129,8 +130,7 @@ type View =
   | { kind: 'ready'; result: PrefillResponse }
   | { kind: 'error'; message: string };
 
-const STEP_NUMBER = 1;
-const STEP_TOTAL = 8;
+const { step: STEP_NUMBER, total: STEP_TOTAL } = wizardStep('intro');
 
 export default function NewBotPage() {
   const router = useRouter();

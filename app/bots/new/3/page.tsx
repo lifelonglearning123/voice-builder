@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWizard } from '@/lib/wizard/context.tsx';
 import { StepShell } from '@/components/wizard/StepShell.tsx';
+import { wizardStep } from '@/lib/wizard/steps.ts';
 import { Field, inputClass } from '@/components/wizard/Field.tsx';
 import { Repeater, RemoveButton } from '@/components/wizard/Repeater.tsx';
 import { CollapsibleSection } from '@/components/wizard/CollapsibleSection.tsx';
@@ -54,12 +55,11 @@ export default function Step3Page() {
 
   return (
     <StepShell
-      step={4}
-      total={11}
+      {...wizardStep('review')}
       title="Review what we drafted"
       description="We've prefilled the AI receptionist's knowledge from your description. Tap a card to review or edit."
       backHref="/bots/new/2"
-      nextHref="/bots/new/5"
+      nextHref="/bots/new/6"
     >
       <div className="space-y-3">
         <CollapsibleSection

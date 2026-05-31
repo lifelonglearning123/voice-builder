@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWizard } from '@/lib/wizard/context.tsx';
 import { StepShell } from '@/components/wizard/StepShell.tsx';
+import { wizardStep } from '@/lib/wizard/steps.ts';
 import { Field, inputClass } from '@/components/wizard/Field.tsx';
 import type { WorkingHours } from '@/src/compile/types.ts';
 
@@ -82,8 +83,7 @@ export default function Step1Page() {
 
   return (
     <StepShell
-      step={2}
-      total={11}
+      {...wizardStep('basics')}
       title="Business basics"
       description="How the AI receptionist identifies itself on a call."
       backHref="/bots/new"

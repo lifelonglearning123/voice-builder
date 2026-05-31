@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWizard } from '@/lib/wizard/context.tsx';
 import { StepShell } from '@/components/wizard/StepShell.tsx';
+import { wizardStep } from '@/lib/wizard/steps.ts';
 import { Field, inputClass } from '@/components/wizard/Field.tsx';
 
 const E164_RE = /^\+\d{8,15}$/;
@@ -98,11 +99,10 @@ export default function Step6Page() {
 
   return (
     <StepShell
-      step={6}
-      total={10}
+      {...wizardStep('phone')}
       title="Phone number"
       description="The number callers dial to reach this AI receptionist."
-      backHref="/bots/new/5"
+      backHref="/bots/new/3"
       nextHref="/bots/new/9"
       nextDisabled={!looksValid}
     >

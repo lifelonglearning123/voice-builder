@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWizard } from '@/lib/wizard/context.tsx';
 import { StepShell } from '@/components/wizard/StepShell.tsx';
+import { wizardStep } from '@/lib/wizard/steps.ts';
 import { Field, inputClass } from '@/components/wizard/Field.tsx';
 import { Repeater, RemoveButton } from '@/components/wizard/Repeater.tsx';
 import { CollapsibleSection } from '@/components/wizard/CollapsibleSection.tsx';
@@ -33,8 +34,7 @@ export default function Step9Page() {
 
   return (
     <StepShell
-      step={7}
-      total={8}
+      {...wizardStep('after-call')}
       title="After the call"
       description="Where the call summary gets sent. Everything else uses smart defaults — open Customise if you want to fine-tune."
       backHref="/bots/new/6"

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWizard } from '@/lib/wizard/context.tsx';
 import { StepShell } from '@/components/wizard/StepShell.tsx';
+import { wizardStep } from '@/lib/wizard/steps.ts';
 import { Field, inputClass } from '@/components/wizard/Field.tsx';
 
 interface RetellVoice {
@@ -132,8 +133,7 @@ export default function Step2Page() {
 
   return (
     <StepShell
-      step={3}
-      total={11}
+      {...wizardStep('voice')}
       title="How it sounds"
       description="Pick a voice, set the tone, and write the opening line."
       backHref="/bots/new/1"

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useWizard } from '@/lib/wizard/context.tsx';
 import { compileBot } from '@/src/compile/compileBot.ts';
 import { StepShell } from '@/components/wizard/StepShell.tsx';
+import { wizardStep } from '@/lib/wizard/steps.ts';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import type { Bot } from '@/src/compile/types.ts';
 
@@ -295,8 +296,7 @@ export default function Step10Page() {
 
   return (
     <StepShell
-      step={8}
-      total={8}
+      {...wizardStep('ready')}
       title={isDone ? 'You did it.' : 'Ready to go live'}
       description={
         isDone
