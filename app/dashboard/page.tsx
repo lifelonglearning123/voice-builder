@@ -1,20 +1,24 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { resolveAgency } from '@/lib/agency/resolve';
 import { ManageBillingButton } from './ManageBillingButton';
 
-// Dashboard renders one of two views depending on the user's role:
+// Dashboard renders one of two views depending on the user's role IN THE
+// AGENCY whose domain they're currently on:
 //
-//   - Agency staff (member of vb.agency_members) → portfolio mode: list of
-//     all SMB clients + their bots in the agency, plus links to settings
-//     and an invite flow.
+//   - Agency staff (vb.agency_members for this agency) → portfolio mode
+//   - SMB client  (vb.agency_clients for this agency) → own-bots mode
 //
-//   - SMB client (member of vb.agency_clients) → own-bots mode: their
-//     receptionist(s), with build/edit links and billing status.
+// A user may belong to multiple agencies (e.g. staff of macaws while
+// also a client of artificialignorance). The Host header decides which
+// "hat" they wear in this request, so each agency's data stays isolated.
 //
-// A user could in principle be both (e.g. an agency owner who's also a
-// trial client of their own product). In that case we prefer the staff view
-// since it's the more powerful one.
+// If both staff and client memberships exist for the same agency, the
+// staff view wins — it's the more powerful one. When the host doesn't
+// resolve to any agency (preview URLs etc.), we fall back to the first
+// available membership so the user still sees something.
 
 export const runtime = 'nodejs';
 
@@ -29,8 +33,11 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  // Probe both membership tables in parallel.
-  const [{ data: staffRows }, { data: clientRows }] = await Promise.all([
+  // Resolve the current host to an agency in parallel with the membership
+  // probes — both feed into the view selection below.
+  const h = await headers();
+  const [hostAgency, { data: staffRows }, { data: clientRows }] = await Promise.all([
+    resolveAgency({ host: h.get('host'), querySlug: null }),
     supabase
       .from('agency_members')
       .select('role, agencies(id, name, slug)')
@@ -54,22 +61,33 @@ export default async function DashboardPage() {
   const clientOf = ((clientRows as ClientJoin[] | null) ?? [])
     .filter((r): r is ClientJoin & { agencies: NonNullable<ClientJoin['agencies']> } => !!r.agencies);
 
-  const isStaff = staffOf.length > 0;
-  const isClient = clientOf.length > 0;
+  // Pick membership scoped to the current host's agency. If the host
+  // doesn't resolve to an agency (preview URL, unconfigured domain), fall
+  // back to whatever the user has so they're not stranded.
+  const activeStaff = hostAgency
+    ? (staffOf.find((r) => r.agencies.id === hostAgency.id) ?? null)
+    : (staffOf[0] ?? null);
+  const activeClient = hostAgency
+    ? (clientOf.find((r) => r.agencies.id === hostAgency.id) ?? null)
+    : (clientOf[0] ?? null);
 
   return (
     <main className="min-h-screen">
-      <DashboardHeader email={user.email ?? ''} isStaff={isStaff} />
+      <DashboardHeader email={user.email ?? ''} isStaff={!!activeStaff} />
 
       <div className="mx-auto max-w-5xl px-6 py-16">
-        {isStaff ? (
+        {activeStaff ? (
           <StaffPortfolioView
-            agency={staffOf[0].agencies}
-            role={staffOf[0].role}
+            agency={activeStaff.agencies}
+            role={activeStaff.role}
             supabase={supabase}
           />
-        ) : isClient ? (
-          <ClientOwnView userId={user.id} supabase={supabase} />
+        ) : activeClient ? (
+          <ClientOwnView
+            userId={user.id}
+            agencyId={activeClient.agencies.id}
+            supabase={supabase}
+          />
         ) : (
           <NoAccessState />
         )}
@@ -218,9 +236,11 @@ async function StaffPortfolioView({
 
 async function ClientOwnView({
   userId,
+  agencyId,
   supabase,
 }: {
   userId: string;
+  agencyId: string;
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
 }) {
   const { data: bots } = await supabase
@@ -229,6 +249,7 @@ async function ClientOwnView({
       'id, status, draft, updated_at, phone_e164, client_subscription_status, client_stripe_subscription_id, cancel_at_period_end, current_period_end',
     )
     .eq('owner_user_id', userId)
+    .eq('agency_id', agencyId)
     .order('updated_at', { ascending: false });
 
   const hasBots = (bots?.length ?? 0) > 0;

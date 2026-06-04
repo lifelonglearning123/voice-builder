@@ -76,12 +76,24 @@ export async function POST(req: Request) {
 
   // Attach per-country regulatory IDs when configured. Numbers in some
   // countries (GB, AU, FR, DE, …) require a verified Address on file before
-  // purchase, and some number types additionally require a Regulatory Bundle.
-  // We resolve the country from the body or from the E.164 prefix.
+  // purchase, and most number types additionally require a Regulatory
+  // Bundle whose regulation profile matches the *type* of number — e.g. a
+  // bundle approved for GB Local numbers won't cover GB Mobile.
+  //
+  // Env-var lookup order, most specific first:
+  //   TWILIO_DEFAULT_BUNDLE_SID_<COUNTRY>_<TYPE>   (e.g. _GB_MOBILE)
+  //   TWILIO_DEFAULT_BUNDLE_SID_<COUNTRY>          (legacy / single-type)
+  // Same pattern for AddressSid. The country and type are resolved from
+  // the body and the E.164 prefix.
   const country = resolveCountry(body.country, phone);
+  const numberType = country ? classifyNumberType(country, phone) : null;
   if (country) {
-    const addressSid = process.env[`TWILIO_DEFAULT_ADDRESS_SID_${country}`];
-    const bundleSid = process.env[`TWILIO_DEFAULT_BUNDLE_SID_${country}`];
+    const addressSid =
+      (numberType && process.env[`TWILIO_DEFAULT_ADDRESS_SID_${country}_${numberType}`]) ||
+      process.env[`TWILIO_DEFAULT_ADDRESS_SID_${country}`];
+    const bundleSid =
+      (numberType && process.env[`TWILIO_DEFAULT_BUNDLE_SID_${country}_${numberType}`]) ||
+      process.env[`TWILIO_DEFAULT_BUNDLE_SID_${country}`];
     if (addressSid) form.set('AddressSid', addressSid);
     if (bundleSid) form.set('BundleSid', bundleSid);
   }
@@ -110,6 +122,22 @@ export async function POST(req: Request) {
     if (/AddressSid/i.test(upstreamMessage) || code === 21452) {
       error =
         'This country requires a verified business address on file before a number can be purchased. Please contact support to complete the one-time address setup.';
+    } else if (code === 21649 || /regulation type/i.test(upstreamMessage)) {
+      // The configured Bundle SID exists but is approved for a different
+      // number type than the one being purchased. Common in GB where Local,
+      // Mobile, and Toll-free each need their own approved bundle.
+      console.error('[twilio/buy] bundle regulation mismatch', {
+        phone,
+        country,
+        numberType,
+        upstreamMessage,
+        hint:
+          country && numberType
+            ? `Set TWILIO_DEFAULT_BUNDLE_SID_${country}_${numberType} to a bundle approved for ${country} ${numberType} numbers.`
+            : null,
+      });
+      error =
+        'This number type isn’t available right now. Please pick a different number, or contact support.';
     } else if (/BundleSid/i.test(upstreamMessage) || code === 21408) {
       error =
         'This number requires a regulatory bundle before it can be purchased. Please contact support to complete the one-time setup.';
@@ -146,5 +174,25 @@ function resolveCountry(country: string | undefined, phone: string): string | nu
   if (explicit && /^[A-Z]{2}$/.test(explicit)) return explicit;
   if (phone.startsWith('+44')) return 'GB';
   if (phone.startsWith('+1')) return 'US';
+  return null;
+}
+
+// Classify the number into one of the regulatory categories Twilio uses for
+// bundles. Returns a screaming-case suffix that combines with the country
+// code to form the env-var name, e.g. TWILIO_DEFAULT_BUNDLE_SID_GB_MOBILE.
+// Returns null for countries we don't split by type — the caller falls back
+// to the country-wide bundle in that case.
+function classifyNumberType(country: string, phone: string): string | null {
+  const digits = phone.replace(/[^\d+]/g, '');
+  if (country === 'GB') {
+    if (/^\+447/.test(digits)) return 'MOBILE';
+    if (/^\+44(800|808)/.test(digits)) return 'TOLLFREE';
+    // 01x / 02x (geographic) and 03x (national) both ride the Local bundle.
+    return 'LOCAL';
+  }
+  if (country === 'US') {
+    if (/^\+1(800|833|844|855|866|877|888)/.test(digits)) return 'TOLLFREE';
+    return 'LOCAL';
+  }
   return null;
 }

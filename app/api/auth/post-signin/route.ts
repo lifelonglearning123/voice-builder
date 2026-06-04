@@ -8,10 +8,11 @@ import { resolveAgency } from '@/lib/agency/resolve';
 // POST /api/auth/post-signin
 //
 // Called by the client-side /auth/callback page once the session is set.
-// If the user is brand new (no agency_members or agency_clients membership
-// anywhere), we auto-provision them as a client of whichever agency the
-// request came from. Resolved from the Host header (or DEFAULT_AGENCY_SLUG
-// in local dev).
+// If the user has no membership *for the agency this request belongs to*,
+// auto-provision them as an SMB client of that agency. Membership is
+// scoped per-agency: the same user can be staff of agency A and a client
+// of agency B independently. The agency is resolved from the Host header
+// (or DEFAULT_AGENCY_SLUG in local dev).
 //
 // Session resolution order:
 //   1. Authorization: Bearer <access_token>  — preferred. The client sends
@@ -32,16 +33,9 @@ export async function POST(request: Request) {
   try {
     const service = createSupabaseServiceClient();
 
-    // Already a staff member or client somewhere? Don't auto-provision.
-    const [{ data: staffRows }, { data: clientRows }] = await Promise.all([
-      service.from('agency_members').select('agency_id').eq('user_id', userId).limit(1),
-      service.from('agency_clients').select('agency_id').eq('user_id', userId).limit(1),
-    ]);
-    if ((staffRows?.length ?? 0) > 0 || (clientRows?.length ?? 0) > 0) {
-      console.log('[post-signin] existing member; skipping provision', { userId });
-      return NextResponse.json({ ok: true, provisioned: false, reason: 'existing_member' });
-    }
-
+    // Resolve which agency this request belongs to first — membership is
+    // scoped per-agency, so we need the agency id before deciding whether
+    // to provision.
     const agency = await resolveAgency({
       host: request.headers.get('host'),
       querySlug: null,
@@ -52,6 +46,31 @@ export async function POST(request: Request) {
         default_slug: process.env.DEFAULT_AGENCY_SLUG,
       });
       return NextResponse.json({ ok: true, provisioned: false, reason: 'no_agency' });
+    }
+
+    // Already a staff member or client of THIS agency? Don't auto-provision.
+    // Memberships in other agencies are irrelevant — the same user can be
+    // a client of multiple agencies, with each "account" kept separate.
+    const [{ data: staffRows }, { data: clientRows }] = await Promise.all([
+      service
+        .from('agency_members')
+        .select('agency_id')
+        .eq('user_id', userId)
+        .eq('agency_id', agency.id)
+        .limit(1),
+      service
+        .from('agency_clients')
+        .select('agency_id')
+        .eq('user_id', userId)
+        .eq('agency_id', agency.id)
+        .limit(1),
+    ]);
+    if ((staffRows?.length ?? 0) > 0 || (clientRows?.length ?? 0) > 0) {
+      console.log('[post-signin] existing member of this agency; skipping provision', {
+        userId,
+        agency_slug: agency.slug,
+      });
+      return NextResponse.json({ ok: true, provisioned: false, reason: 'existing_member' });
     }
 
     const { error } = await service
