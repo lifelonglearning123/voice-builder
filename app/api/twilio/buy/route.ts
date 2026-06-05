@@ -94,6 +94,13 @@ export async function POST(req: Request) {
     const bundleSid =
       (numberType && process.env[`TWILIO_DEFAULT_BUNDLE_SID_${country}_${numberType}`]) ||
       process.env[`TWILIO_DEFAULT_BUNDLE_SID_${country}`];
+    console.log('[twilio/buy] regulatory resolved', {
+      phone,
+      country,
+      numberType,
+      addressSid: addressSid ?? null,
+      bundleSid: bundleSid ?? null,
+    });
     if (addressSid) form.set('AddressSid', addressSid);
     if (bundleSid) form.set('BundleSid', bundleSid);
   }
