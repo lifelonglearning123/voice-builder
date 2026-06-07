@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 interface Props {
   step: number;
@@ -33,6 +33,12 @@ export function StepShell({
 }: Props) {
   const router = useRouter();
   const progress = step / total;
+
+  // Warm the next route's bundle while the user reads the current step, so
+  // clicking Continue is instant instead of waiting on a cold JS fetch.
+  useEffect(() => {
+    if (nextHref) router.prefetch(nextHref);
+  }, [nextHref, router]);
 
   function handleContinue() {
     const ok = onContinue ? onContinue() : true;
