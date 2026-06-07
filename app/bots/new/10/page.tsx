@@ -303,7 +303,7 @@ export default function Step10Page() {
           ? undefined
           : 'One last check, then your AI receptionist starts taking calls.'
       }
-      backHref="/bots/new/9"
+      backHref="/bots/new/6"
     >
       <div className="space-y-6">
         {!isDone && !isWorking && (

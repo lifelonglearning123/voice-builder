@@ -6,9 +6,7 @@ export const WIZARD_SLUGS = [
   'intro',
   'basics',
   'voice',
-  'review',
   'phone',
-  'after-call',
   'ready',
 ] as const;
 

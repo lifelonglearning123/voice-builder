@@ -253,10 +253,17 @@ export function WizardProvider({ children }: { children: ReactNode }) {
             setStatus('idle');
             return;
           }
+          // Backfill the post-call summary email to the signed-in user's
+          // address. The wizard no longer exposes a UI to edit this, so we
+          // default it on every save — also catches older draft rows that
+          // were saved before this default existed.
+          const draftToSave: WizardDraft = d.fallback_email_to
+            ? d
+            : { ...d, fallback_email_to: user.email ?? null };
           if (botIdRef.current) {
             const { error } = await supabase
               .from('bots')
-              .update({ draft: d })
+              .update({ draft: draftToSave })
               .eq('id', botIdRef.current);
             if (error) throw error;
           } else {
@@ -266,7 +273,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
                 agency_id: aid,
                 user_id: user.id,
                 owner_user_id: user.id,
-                draft: d,
+                draft: draftToSave,
                 status: 'draft',
               })
               .select('id')

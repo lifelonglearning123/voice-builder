@@ -137,7 +137,7 @@ export default function Step2Page() {
       title="How it sounds"
       description="Pick a voice, set the tone, and write the opening line."
       backHref="/bots/new/1"
-      nextHref="/bots/new/3"
+      nextHref="/bots/new/6"
       nextDisabled={!canContinue}
     >
       <div className="space-y-5">

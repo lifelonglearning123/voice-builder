@@ -102,8 +102,8 @@ export default function Step6Page() {
       {...wizardStep('phone')}
       title="Phone number"
       description="The number callers dial to reach this AI receptionist."
-      backHref="/bots/new/3"
-      nextHref="/bots/new/9"
+      backHref="/bots/new/2"
+      nextHref="/bots/new/10"
       nextDisabled={!looksValid}
     >
       <div className="space-y-5">
