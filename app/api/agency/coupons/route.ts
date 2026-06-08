@@ -247,7 +247,13 @@ export async function POST(request: Request) {
       console.error('[coupons] rollback failed:', rollbackErr);
     }
     console.error('[coupons] promotion code create failed:', e);
-    const msg = e instanceof Error ? e.message : 'Failed to create promo code.';
+    const stripeCode = (e as { code?: string })?.code;
+    const msg =
+      stripeCode === 'resource_already_exists'
+        ? 'That code is already in use. Please choose a different one.'
+        : e instanceof Error
+          ? e.message
+          : 'Failed to create promo code.';
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 }
