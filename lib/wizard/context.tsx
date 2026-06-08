@@ -115,7 +115,7 @@ interface WizardState {
 
 const WizardContext = createContext<WizardState | null>(null);
 
-export function WizardProvider({ children }: { children: ReactNode }) {
+export function WizardProvider({ children, initialAgencyId = null }: { children: ReactNode; initialAgencyId?: string | null }) {
   const [draft, setDraftState] = useState<WizardDraft | null>(null);
   const [botId, setBotId] = useState<string | null>(null);
   const [botStatus, setBotStatus] = useState<BotLifecycle>(null);
@@ -156,24 +156,28 @@ export function WizardProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // Determine which agency to act on behalf of. Staff membership wins
-        // over client membership; in M2 we'll let users choose explicitly.
-        const [{ data: staffRows }, { data: clientRows }] = await Promise.all([
-          supabase
-            .from('agency_members')
-            .select('agency_id')
-            .eq('user_id', user.id)
-            .limit(1),
-          supabase
-            .from('agency_clients')
-            .select('agency_id')
-            .eq('user_id', user.id)
-            .limit(1),
-        ]);
-        if (cancelled) return;
-
-        const resolved =
-          staffRows?.[0]?.agency_id ?? clientRows?.[0]?.agency_id ?? null;
+        // Determine which agency to act on behalf of.
+        // initialAgencyId is resolved server-side from the request hostname so
+        // users who belong to multiple agencies always land on the right one.
+        // Fall back to membership query only when the layout couldn't resolve it.
+        let resolved: string | null = initialAgencyId;
+        if (!resolved) {
+          const [{ data: staffRows }, { data: clientRows }] = await Promise.all([
+            supabase
+              .from('agency_members')
+              .select('agency_id')
+              .eq('user_id', user.id)
+              .limit(1),
+            supabase
+              .from('agency_clients')
+              .select('agency_id')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(1),
+          ]);
+          if (cancelled) return;
+          resolved = staffRows?.[0]?.agency_id ?? clientRows?.[0]?.agency_id ?? null;
+        }
         setAgencyId(resolved);
 
         if (!resolved) {
@@ -226,7 +230,8 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-    // supabase is memoised; intentionally empty dep array — runs once.
+    // supabase is memoised; initialAgencyId comes from a server prop and never
+    // changes after mount. Intentionally empty dep array — runs once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
