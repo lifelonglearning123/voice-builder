@@ -206,6 +206,7 @@ export function WizardProvider({ children, initialAgencyId = null }: { children:
               .from('bots')
               .select('id, draft, status')
               .eq('owner_user_id', user.id)
+              .eq('agency_id', resolved)
               .eq('status', 'draft')
               .order('updated_at', { ascending: false })
               .limit(1)
