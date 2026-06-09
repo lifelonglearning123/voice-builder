@@ -174,7 +174,7 @@ export default function Step6Page() {
   }
 
   async function handleActivate() {
-    if (!compiledOk) return;
+    if (!draft || !compiledOk) return;
     if (!subActive) {
       if (!botId) return;
       setActivate({ kind: 'deploying' });
@@ -276,7 +276,7 @@ export default function Step6Page() {
   }
 
   async function handleLinkRetry() {
-    if (activate.kind !== 'link_error') return;
+    if (!draft || activate.kind !== 'link_error') return;
     const agentId = activate.agent_id;
     setActivate({ kind: 'linking', agent_id: agentId });
     try {
