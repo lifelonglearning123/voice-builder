@@ -36,7 +36,7 @@ const CONFETTI = Array.from({ length: 14 }, (_, i) => {
 
 export default function Step10Page() {
   const router = useRouter();
-  const { draft, status, markActivated, botId } = useWizard();
+  const { draft, status, markActivated, botId, agencyId } = useWizard();
   const [state, setState] = useState<ActivateState>({ kind: 'idle' });
   const [subStatus, setSubStatus] = useState<string | null>(null);
   const [checkoutBanner, setCheckoutBanner] = useState<string | null>(null);
@@ -183,6 +183,7 @@ export default function Step10Page() {
                 : draft!.twilio_phone_e164.startsWith('+1')
                   ? 'US'
                   : undefined,
+            agency_id: agencyId ?? undefined,
           }),
         });
         const buyData = await buyRes.json();
@@ -230,6 +231,7 @@ export default function Step10Page() {
           phone_e164: draft!.twilio_phone_e164,
           agent_id: agentId,
           nickname: draft!.internal_name || draft!.business_name || undefined,
+          agency_id: agencyId ?? undefined,
         }),
       });
       const linkData = await linkRes.json();
@@ -267,6 +269,7 @@ export default function Step10Page() {
           phone_e164: draft!.twilio_phone_e164,
           agent_id: agentId,
           nickname: draft!.internal_name || draft!.business_name || undefined,
+          agency_id: agencyId ?? undefined,
         }),
       });
       const linkData = await linkRes.json();

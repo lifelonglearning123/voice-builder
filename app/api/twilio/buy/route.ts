@@ -1,36 +1,23 @@
 import { NextResponse } from 'next/server';
+import { resolveTwilioCredentials, resolveTwilioRegulatory, basicAuth } from '@/lib/twilio/resolve';
+import { createSupabaseServiceClient } from '@/lib/supabase/server';
 
 // POST /api/twilio/buy
-// Body: { phone_number: "+441234567890", friendly_name?: string }
+// Body: { phone_number: "+441234567890", friendly_name?: string, agency_id?: string }
 //
-// Purchases the given Twilio number into the configured sub-account.
-// Auth: HTTP basic with TWILIO_ACCOUNT_SID:TWILIO_AUTH_TOKEN.
+// Purchases the given Twilio number. Uses per-agency Twilio credentials when
+// agency_id is provided, falls back to platform env vars.
 
 export const runtime = 'nodejs';
 
 interface BuyBody {
   phone_number?: string;
   friendly_name?: string;
-  // Optional ISO country code (GB / US / CA). When present, the proxy looks
-  // up a regulatory Address SID (and optional Bundle SID) from env vars and
-  // attaches them to the purchase request — required in countries like GB.
   country?: string;
-}
-
-function basicAuth(sid: string, token: string): string {
-  return `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`;
+  agency_id?: string;
 }
 
 export async function POST(req: Request) {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  if (!sid || !token) {
-    return NextResponse.json(
-      { error: 'TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be set in .env.local.' },
-      { status: 500 },
-    );
-  }
-
   let body: BuyBody;
   try {
     body = (await req.json()) as BuyBody;
@@ -46,9 +33,30 @@ export async function POST(req: Request) {
     );
   }
 
-  // Idempotency — if the number is already in this Twilio account (e.g.
-  // the user pasted a number they own, or a previous activation already
-  // purchased it), skip the purchase and return success.
+  // Resolve agency_id — prefer explicit body param, fall back to bot lookup
+  // if the caller passes bot_id instead.
+  let agencyId = body.agency_id?.trim() ?? null;
+
+  let sid: string;
+  let token: string;
+  try {
+    if (agencyId) {
+      const creds = await resolveTwilioCredentials(agencyId);
+      sid = creds.sid;
+      token = creds.token;
+    } else {
+      sid = process.env.TWILIO_ACCOUNT_SID ?? '';
+      token = process.env.TWILIO_AUTH_TOKEN ?? '';
+    }
+    if (!sid || !token) throw new Error('missing');
+  } catch {
+    return NextResponse.json(
+      { error: 'TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be set in .env.local.' },
+      { status: 500 },
+    );
+  }
+
+  // Idempotency check — if the number is already in this Twilio account, skip.
   const lookupUrl = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phone)}`;
   const lookupRes = await fetch(lookupUrl, {
     headers: { Authorization: basicAuth(sid, token) },
@@ -57,9 +65,7 @@ export async function POST(req: Request) {
     const lookupData = (await lookupRes.json().catch(() => ({}))) as {
       incoming_phone_numbers?: Array<{ sid: string; phone_number: string; friendly_name?: string }>;
     };
-    const existing = lookupData.incoming_phone_numbers?.find(
-      (n) => n.phone_number === phone,
-    );
+    const existing = lookupData.incoming_phone_numbers?.find((n) => n.phone_number === phone);
     if (existing) {
       return NextResponse.json({
         sid: existing.sid,
@@ -74,39 +80,34 @@ export async function POST(req: Request) {
   form.set('PhoneNumber', phone);
   if (body.friendly_name) form.set('FriendlyName', body.friendly_name);
 
-  // Attach per-country regulatory IDs when configured. Numbers in some
-  // countries (GB, AU, FR, DE, …) require a verified Address on file before
-  // purchase, and most number types additionally require a Regulatory
-  // Bundle whose regulation profile matches the *type* of number — e.g. a
-  // bundle approved for GB Local numbers won't cover GB Mobile.
-  //
-  // Env-var lookup order, most specific first:
-  //   TWILIO_DEFAULT_BUNDLE_SID_<COUNTRY>_<TYPE>   (e.g. _GB_MOBILE)
-  //   TWILIO_DEFAULT_BUNDLE_SID_<COUNTRY>          (legacy / single-type)
-  // Same pattern for AddressSid. The country and type are resolved from
-  // the body and the E.164 prefix.
   const country = resolveCountry(body.country, phone);
   const numberType = country ? classifyNumberType(country, phone) : null;
+
   if (country) {
-    const addressSid =
-      (numberType && process.env[`TWILIO_DEFAULT_ADDRESS_SID_${country}_${numberType}`]) ||
-      process.env[`TWILIO_DEFAULT_ADDRESS_SID_${country}`];
-    const bundleSid =
-      (numberType && process.env[`TWILIO_DEFAULT_BUNDLE_SID_${country}_${numberType}`]) ||
-      process.env[`TWILIO_DEFAULT_BUNDLE_SID_${country}`];
-    console.log('[twilio/buy] regulatory resolved', {
-      phone,
-      country,
-      numberType,
-      addressSid: addressSid ?? null,
-      bundleSid: bundleSid ?? null,
-    });
+    let addressSid: string | null = null;
+    let bundleSid: string | null = null;
+
+    if (agencyId) {
+      const reg = await resolveTwilioRegulatory(agencyId, country, numberType);
+      addressSid = reg.addressSid;
+      bundleSid = reg.bundleSid;
+    } else {
+      addressSid =
+        (numberType && process.env[`TWILIO_DEFAULT_ADDRESS_SID_${country}_${numberType}`]) ||
+        process.env[`TWILIO_DEFAULT_ADDRESS_SID_${country}`] ||
+        null;
+      bundleSid =
+        (numberType && process.env[`TWILIO_DEFAULT_BUNDLE_SID_${country}_${numberType}`]) ||
+        process.env[`TWILIO_DEFAULT_BUNDLE_SID_${country}`] ||
+        null;
+    }
+
+    console.log('[twilio/buy] regulatory resolved', { phone, country, numberType, addressSid, bundleSid });
     if (addressSid) form.set('AddressSid', addressSid);
     if (bundleSid) form.set('BundleSid', bundleSid);
   }
 
   const url = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/IncomingPhoneNumbers.json`;
-
   const upstream = await fetch(url, {
     method: 'POST',
     headers: {
@@ -119,49 +120,30 @@ export async function POST(req: Request) {
   const data = (await upstream.json().catch(() => ({}))) as Record<string, unknown>;
 
   if (!upstream.ok) {
-    const upstreamMessage =
-      typeof data.message === 'string' ? data.message : '';
+    const upstreamMessage = typeof data.message === 'string' ? data.message : '';
     const code = typeof data.code === 'number' ? data.code : undefined;
 
-    // Map common upstream failures to plain-English messages that don't leak
-    // the provider name.
-    let error = 'Couldn’t purchase the number. Please try a different one.';
+    let error = 'Couldn't purchase the number. Please try a different one.';
     if (/AddressSid/i.test(upstreamMessage) || code === 21452) {
       error =
         'This country requires a verified business address on file before a number can be purchased. Please contact support to complete the one-time address setup.';
     } else if (code === 21649 || /regulation type/i.test(upstreamMessage)) {
-      // The configured Bundle SID exists but is approved for a different
-      // number type than the one being purchased. Common in GB where Local,
-      // Mobile, and Toll-free each need their own approved bundle.
       console.error('[twilio/buy] bundle regulation mismatch', {
-        phone,
-        country,
-        numberType,
-        upstreamMessage,
-        hint:
-          country && numberType
-            ? `Set TWILIO_DEFAULT_BUNDLE_SID_${country}_${numberType} to a bundle approved for ${country} ${numberType} numbers.`
-            : null,
+        phone, country, numberType, upstreamMessage,
+        hint: country && numberType
+          ? `Set bundle_sid for ${country} ${numberType} in your Twilio settings.`
+          : null,
       });
-      error =
-        'This number type isn’t available right now. Please pick a different number, or contact support.';
+      error = 'This number type isn't available right now. Please pick a different number, or contact support.';
     } else if (/BundleSid/i.test(upstreamMessage) || code === 21408) {
-      error =
-        'This number requires a regulatory bundle before it can be purchased. Please contact support to complete the one-time setup.';
+      error = 'This number requires a regulatory bundle before it can be purchased. Please contact support to complete the one-time setup.';
     } else if (upstream.status === 401 || upstream.status === 403) {
       error = 'Number purchasing is misconfigured. Please contact support.';
     } else if (upstream.status === 404) {
       error = 'That number is no longer available — please pick another.';
     }
 
-    return NextResponse.json(
-      {
-        error,
-        detail: upstreamMessage.slice(0, 500),
-        code,
-      },
-      { status: 502 },
-    );
+    return NextResponse.json({ error, detail: upstreamMessage.slice(0, 500), code }, { status: 502 });
   }
 
   return NextResponse.json({
@@ -171,11 +153,6 @@ export async function POST(req: Request) {
   });
 }
 
-// Resolve the ISO-3166 country code for env-var lookup. Prefers the explicit
-// country sent by the frontend; falls back to inferring from the E.164 prefix.
-// (Note: +1 covers both US and CA — when no country is provided the env var
-// has to be set under TWILIO_DEFAULT_ADDRESS_SID_US, or the frontend must
-// pass the country explicitly.)
 function resolveCountry(country: string | undefined, phone: string): string | null {
   const explicit = country?.toUpperCase().trim();
   if (explicit && /^[A-Z]{2}$/.test(explicit)) return explicit;
@@ -184,17 +161,11 @@ function resolveCountry(country: string | undefined, phone: string): string | nu
   return null;
 }
 
-// Classify the number into one of the regulatory categories Twilio uses for
-// bundles. Returns a screaming-case suffix that combines with the country
-// code to form the env-var name, e.g. TWILIO_DEFAULT_BUNDLE_SID_GB_MOBILE.
-// Returns null for countries we don't split by type — the caller falls back
-// to the country-wide bundle in that case.
 function classifyNumberType(country: string, phone: string): string | null {
   const digits = phone.replace(/[^\d+]/g, '');
   if (country === 'GB') {
     if (/^\+447/.test(digits)) return 'MOBILE';
     if (/^\+44(800|808)/.test(digits)) return 'TOLLFREE';
-    // 01x / 02x (geographic) and 03x (national) both ride the Local bundle.
     return 'LOCAL';
   }
   if (country === 'US') {

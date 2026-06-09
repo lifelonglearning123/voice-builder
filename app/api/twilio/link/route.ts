@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { resolveTwilioCredentials, basicAuth as makeTwilioAuth } from '@/lib/twilio/resolve';
 
 // POST /api/twilio/link
 //
@@ -31,6 +32,7 @@ interface LinkBody {
   phone_e164: string;
   agent_id: string;
   nickname?: string;
+  agency_id?: string;
 }
 
 interface StepLog {
@@ -51,16 +53,7 @@ interface Trunk {
 }
 
 export async function POST(req: Request) {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
   const retellKey = process.env.RETELL_API_KEY;
-
-  if (!sid || !token) {
-    return NextResponse.json(
-      { error: 'TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be set on the server.' },
-      { status: 500 },
-    );
-  }
   if (!retellKey) {
     return NextResponse.json(
       { error: 'RETELL_API_KEY must be set on the server.' },
@@ -77,6 +70,26 @@ export async function POST(req: Request) {
 
   const phone = body?.phone_e164?.trim();
   const agentId = body?.agent_id?.trim();
+  const agencyId = body?.agency_id?.trim();
+
+  let sid: string;
+  let token: string;
+  try {
+    if (agencyId) {
+      const creds = await resolveTwilioCredentials(agencyId);
+      sid = creds.sid;
+      token = creds.token;
+    } else {
+      sid = process.env.TWILIO_ACCOUNT_SID ?? '';
+      token = process.env.TWILIO_AUTH_TOKEN ?? '';
+    }
+    if (!sid || !token) throw new Error('missing');
+  } catch {
+    return NextResponse.json(
+      { error: 'TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be set on the server.' },
+      { status: 500 },
+    );
+  }
   if (!phone || !agentId) {
     return NextResponse.json(
       { error: 'phone_e164 and agent_id are required.' },
@@ -91,7 +104,7 @@ export async function POST(req: Request) {
   }
 
   const nickname = (body.nickname || `retell-${agentId.slice(-10)}`).slice(0, 64);
-  const twilioAuth = `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`;
+  const twilioAuth = makeTwilioAuth(sid, token);
   const log: StepLog[] = [];
 
   // ---------------------------------------------------------------------------

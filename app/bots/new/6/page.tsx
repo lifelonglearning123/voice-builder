@@ -39,7 +39,7 @@ type BuyState =
 
 export default function Step6Page() {
   const router = useRouter();
-  const { draft, patch, status } = useWizard();
+  const { draft, patch, status, agencyId } = useWizard();
 
   const [country, setCountry] = useState('GB');
   const [type, setType] = useState<NumberType>('local');
@@ -67,6 +67,7 @@ export default function Step6Page() {
       params.set('country', country);
       params.set('type', type);
       if (contains.trim()) params.set('contains', contains.trim());
+      if (agencyId) params.set('agency_id', agencyId);
       const res = await fetch(`/api/twilio/search?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) {

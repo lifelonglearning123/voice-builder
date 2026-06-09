@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { BrandingForm } from '@/components/dashboard/BrandingForm';
 import { CouponsSection } from '@/components/dashboard/CouponsSection';
+import { TwilioConfig } from '@/components/dashboard/TwilioConfig';
 
 // /dashboard/settings — agency staff only.
 //
@@ -165,6 +166,24 @@ export default async function AgencySettingsPage({
             agencyId={agency.id}
             defaultCurrency={agency.client_currency ?? 'GBP'}
           />
+        )}
+
+        {canManage && (
+          <section className="mt-10 rounded-xl border border-slate-200 bg-white p-6">
+            <p className="font-mono-tight text-[11px] tracking-[0.18em] text-slate-400">
+              TWILIO
+            </p>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+              Phone number provider
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+              Connect your own Twilio account so your clients' phone numbers are
+              purchased under your account. Leave blank to use the platform account.
+              Add your approved regulatory bundles and addresses so numbers can be
+              purchased in countries that require compliance documents.
+            </p>
+            <TwilioConfig agencyId={agency.id} />
+          </section>
         )}
       </div>
     </main>
