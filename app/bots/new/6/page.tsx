@@ -570,7 +570,7 @@ function ActivatingState({ stage, hasPhone }: { stage: 'deploying' | 'linking'; 
   const message = stage === 'deploying' ? 'Bringing your AI receptionist online…' : 'Connecting your phone number…';
   const subtext =
     stage === 'deploying'
-      ? hasPhone ? 'After this, we'll connect your phone number.' : 'Almost there.'
+      ? hasPhone ? "After this, we'll connect your phone number." : 'Almost there.'
       : 'Routing calls to your AI receptionist.';
 
   return (
