@@ -123,7 +123,7 @@ export async function POST(req: Request) {
     const upstreamMessage = typeof data.message === 'string' ? data.message : '';
     const code = typeof data.code === 'number' ? data.code : undefined;
 
-    let error = 'Couldn't purchase the number. Please try a different one.';
+    let error = "Couldn't purchase the number. Please try a different one.";
     if (/AddressSid/i.test(upstreamMessage) || code === 21452) {
       error =
         'This country requires a verified business address on file before a number can be purchased. Please contact support to complete the one-time address setup.';
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
           ? `Set bundle_sid for ${country} ${numberType} in your Twilio settings.`
           : null,
       });
-      error = 'This number type isn't available right now. Please pick a different number, or contact support.';
+      error = "This number type isn't available right now. Please pick a different number, or contact support.";
     } else if (/BundleSid/i.test(upstreamMessage) || code === 21408) {
       error = 'This number requires a regulatory bundle before it can be purchased. Please contact support to complete the one-time setup.';
     } else if (upstream.status === 401 || upstream.status === 403) {

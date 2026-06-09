@@ -75,10 +75,10 @@ export async function GET(req: Request) {
 
   if (!upstream.ok) {
     const detail = await upstream.text().catch(() => '');
-    let message = 'Couldn't search numbers. Please try different search criteria.';
+    let message = "Couldn't search numbers. Please try different search criteria.";
     if (upstream.status === 400) {
       message =
-        'Couldn't process that search. Check your area code — it should be numbers only, with no spaces or country code.';
+        "Couldn't process that search. Check your area code — it should be numbers only, with no spaces or country code.";
     } else if (upstream.status === 401 || upstream.status === 403) {
       message = 'Number search is misconfigured. Please contact support.';
     } else if (upstream.status === 429) {
