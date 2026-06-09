@@ -2,11 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 
-// Countries and number types the platform supports regulatory config for.
-const COUNTRIES = [
+// Only countries where Twilio requires a regulatory bundle + address SID
+// before a number can be purchased. US and CA have no such requirement.
+const REGULATED_COUNTRIES = [
   { code: 'GB', label: 'United Kingdom' },
-  { code: 'US', label: 'United States' },
-  { code: 'CA', label: 'Canada' },
 ];
 const NUMBER_TYPES = ['LOCAL', 'MOBILE', 'TOLLFREE'];
 
@@ -184,14 +183,15 @@ export function TwilioConfig({ agencyId }: { agencyId: string }) {
         </button>
       </div>
 
-      {/* Regulatory bundles + addresses */}
-      <div>
+      {/* Regulatory bundles + addresses — only shown once a Twilio account is saved */}
+      {data?.account_sid && <div>
         <p className="text-xs font-medium text-slate-700">
           Regulatory bundles &amp; addresses
         </p>
         <p className="mt-1 text-xs text-slate-500">
-          Required for purchasing numbers in regulated countries. Select the approved
-          bundle and address for each number type. Leave blank to use the platform defaults.
+          Required for UK numbers only — Twilio enforces proof of local presence before
+          a UK geographic or mobile number can be purchased. US and Canada have no such
+          requirement. Leave blank to use the platform defaults.
         </p>
 
         {bundles.length === 0 && addresses.length === 0 ? (
@@ -200,7 +200,7 @@ export function TwilioConfig({ agencyId }: { agencyId: string }) {
           </p>
         ) : (
           <div className="mt-4 space-y-6">
-            {COUNTRIES.map((c) => (
+            {REGULATED_COUNTRIES.map((c) => (
               <div key={c.code}>
                 <p className="text-xs font-semibold text-slate-800">{c.label} ({c.code})</p>
                 <div className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
@@ -260,7 +260,7 @@ export function TwilioConfig({ agencyId }: { agencyId: string }) {
             {regStatus === 'saving' ? 'Saving…' : regStatus === 'saved' ? 'Saved ✓' : 'Save regulatory settings'}
           </button>
         ) : null}
-      </div>
+      </div>}
     </div>
   );
 }
