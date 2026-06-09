@@ -7,7 +7,6 @@ export const WIZARD_SLUGS = [
   'basics',
   'voice',
   'phone',
-  'ready',
 ] as const;
 
 export type WizardSlug = (typeof WIZARD_SLUGS)[number];

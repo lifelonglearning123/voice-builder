@@ -92,7 +92,7 @@ export function CouponsSection({ agencyId, defaultCurrency }: Props) {
         to this workspace — clients on other workspaces can&rsquo;t use it.
         Share via URL:{' '}
         <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">
-          /bots/new/10?promo=YOURCODE
+          /bots/new/6?promo=YOURCODE
         </code>
       </p>
 

@@ -4,5 +4,5 @@ import { redirect } from 'next/navigation';
 // from an in-progress session, a stale bookmark, or the browser back/forward
 // stack — is forwarded to the current next step.
 export default function RemovedAfterCallStep() {
-  redirect('/bots/new/10');
+  redirect('/bots/new/6');
 }

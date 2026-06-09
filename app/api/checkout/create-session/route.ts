@@ -216,7 +216,7 @@ export async function POST(request: Request) {
       // request param can apply a discount.
       ...(promotionCodeId ? { discounts: [{ promotion_code: promotionCodeId }] } : {}),
       success_url: `${origin}/api/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/bots/new/10?checkout=cancelled`,
+      cancel_url: `${origin}/bots/new/6?checkout=cancelled`,
     });
 
     if (!session.url) {
