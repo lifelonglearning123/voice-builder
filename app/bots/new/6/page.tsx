@@ -39,7 +39,7 @@ type BuyState =
 
 export default function Step6Page() {
   const router = useRouter();
-  const { draft, patch, status, agencyId } = useWizard();
+  const { draft, patch, status, agencyId, botStatus } = useWizard();
 
   const [country, setCountry] = useState('GB');
   const [type, setType] = useState<NumberType>('local');
@@ -56,6 +56,8 @@ export default function Step6Page() {
   if (!draft) {
     return <main className="mx-auto max-w-3xl px-6 py-12 text-slate-500">Loading…</main>;
   }
+
+  const isLive = botStatus === 'live';
 
   const value = draft.twilio_phone_e164 ?? '';
   const looksValid = value === '' || E164_RE.test(value);
@@ -136,19 +138,23 @@ export default function Step6Page() {
                   {value}
                 </p>
                 <p className="mt-2 text-xs text-green-800">
-                  Click <span className="font-medium">Continue</span> below to move on, or pick a different number.
+                  {isLive
+                    ? 'This number is live and cannot be changed.'
+                    : <>Click <span className="font-medium">Continue</span> below to move on, or pick a different number.</>}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => patch({ twilio_phone_e164: null })}
-                  className="mt-2 text-xs font-medium text-green-700 underline hover:text-green-900"
-                >
-                  Clear and pick a different number
-                </button>
+                {!isLive && (
+                  <button
+                    type="button"
+                    onClick={() => patch({ twilio_phone_e164: null })}
+                    className="mt-2 text-xs font-medium text-green-700 underline hover:text-green-900"
+                  >
+                    Clear and pick a different number
+                  </button>
+                )}
               </div>
             </div>
           </div>
-        ) : (
+        ) : isLive ? null : (
         <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <Field label="Country" htmlFor="t_country">

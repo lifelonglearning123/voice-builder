@@ -49,7 +49,10 @@ export default function Step10Page() {
     if (status === 'idle' && !draft) {
       router.replace('/bots/new');
     }
-  }, [draft, status, router]);
+    if (status === 'idle' && botStatus === 'live' && state.kind === 'idle') {
+      router.replace('/dashboard');
+    }
+  }, [draft, status, botStatus, state.kind, router]);
 
   // Read the bot's current subscription status (set by checkout return + webhook).
   useEffect(() => {
