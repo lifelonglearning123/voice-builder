@@ -32,7 +32,7 @@ export default async function AgencySettingsPage({
   const { data: staffRows } = await supabase
     .from('agency_members')
     .select(
-      'role, agencies(id, name, slug, stripe_connect_account_id, stripe_connect_onboarding_complete, brand_logo_url, brand_color, custom_domain, custom_domain_verified, client_price_pence, client_currency)',
+      'role, agencies(id, name, slug, stripe_connect_account_id, stripe_connect_onboarding_complete, stripe_country, brand_logo_url, brand_color, custom_domain, custom_domain_verified, client_price_pence, client_currency)',
     )
     .eq('user_id', user.id);
 
@@ -44,6 +44,7 @@ export default async function AgencySettingsPage({
       slug: string;
       stripe_connect_account_id: string | null;
       stripe_connect_onboarding_complete: boolean;
+      stripe_country: string | null;
       brand_logo_url: string | null;
       brand_color: string | null;
       custom_domain: string | null;
@@ -194,6 +195,50 @@ export default async function AgencySettingsPage({
  * Connect status card
  * ------------------------------------------------------------------------- */
 
+// Subset of Stripe Connect Express supported countries, kept in sync with the
+// allowlist in app/api/stripe/connect/start/route.ts. Ordered with the
+// most-likely ones first; the rest sorted alphabetically by label.
+const COUNTRY_OPTIONS: Array<{ code: string; label: string }> = [
+  { code: 'GB', label: 'United Kingdom' },
+  { code: 'US', label: 'United States' },
+  { code: 'CA', label: 'Canada' },
+  { code: 'AU', label: 'Australia' },
+  { code: 'IE', label: 'Ireland' },
+  { code: 'NZ', label: 'New Zealand' },
+  { code: 'AT', label: 'Austria' },
+  { code: 'BE', label: 'Belgium' },
+  { code: 'BG', label: 'Bulgaria' },
+  { code: 'CH', label: 'Switzerland' },
+  { code: 'CY', label: 'Cyprus' },
+  { code: 'CZ', label: 'Czechia' },
+  { code: 'DE', label: 'Germany' },
+  { code: 'DK', label: 'Denmark' },
+  { code: 'EE', label: 'Estonia' },
+  { code: 'ES', label: 'Spain' },
+  { code: 'FI', label: 'Finland' },
+  { code: 'FR', label: 'France' },
+  { code: 'GR', label: 'Greece' },
+  { code: 'HK', label: 'Hong Kong' },
+  { code: 'HR', label: 'Croatia' },
+  { code: 'HU', label: 'Hungary' },
+  { code: 'IT', label: 'Italy' },
+  { code: 'JP', label: 'Japan' },
+  { code: 'LT', label: 'Lithuania' },
+  { code: 'LU', label: 'Luxembourg' },
+  { code: 'LV', label: 'Latvia' },
+  { code: 'MT', label: 'Malta' },
+  { code: 'MX', label: 'Mexico' },
+  { code: 'NL', label: 'Netherlands' },
+  { code: 'NO', label: 'Norway' },
+  { code: 'PL', label: 'Poland' },
+  { code: 'PT', label: 'Portugal' },
+  { code: 'RO', label: 'Romania' },
+  { code: 'SE', label: 'Sweden' },
+  { code: 'SG', label: 'Singapore' },
+  { code: 'SI', label: 'Slovenia' },
+  { code: 'SK', label: 'Slovakia' },
+];
+
 function ConnectCard({
   agencyId,
   accountId,
@@ -254,8 +299,34 @@ function ConnectCard({
       </div>
 
       {canManage && (
-        <form action="/api/stripe/connect/start" method="post" className="mt-6">
+        <form action="/api/stripe/connect/start" method="post" className="mt-6 space-y-4">
           <input type="hidden" name="agency_id" value={agencyId} />
+          {status === 'not_started' && (
+            <label className="block max-w-xs">
+              <span className="text-xs font-medium tracking-tight text-slate-700">
+                Country of your business
+              </span>
+              <select
+                name="stripe_country"
+                defaultValue=""
+                required
+                className="mt-1.5 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-4 focus:ring-slate-900/[0.04]"
+              >
+                <option value="" disabled>
+                  — select your country —
+                </option>
+                {COUNTRY_OPTIONS.map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1.5 block text-[11px] leading-snug tracking-tight text-slate-500">
+                Where your business is registered and banks. Stripe locks this once
+                onboarding starts — pick carefully.
+              </span>
+            </label>
+          )}
           <button type="submit" className="wizard-pill">
             {status === 'connected'
               ? 'Manage Stripe account →'

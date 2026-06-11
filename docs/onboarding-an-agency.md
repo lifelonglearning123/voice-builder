@@ -19,6 +19,11 @@ Get from the agency owner:
 - **Owner email** — the email the agency owner will sign in with
 - **Sender email** — what magic-link emails should come from — e.g. `noreply@acmedigital.com`
 - **Sender display name** — e.g. `Acme Digital`
+- **Country of business** (ISO-3166 alpha-2, e.g. `GB`, `US`, `CA`) — where
+  the agency is registered and banks. Stripe Connect Express locks the
+  country at account creation, so the owner needs to pick this *before*
+  clicking *Set up payments*. The settings page exposes a dropdown but they
+  can also pre-set it in the agency row below.
 
 ---
 
@@ -88,7 +93,8 @@ INSERT INTO vb.agencies (
   custom_domain_verified,
   from_email,
   from_name,
-  brand_color
+  brand_color,
+  stripe_country
 )
 VALUES (
   'Acme Digital',                           -- agency name
@@ -97,7 +103,8 @@ VALUES (
   true,                                     -- flip once Vercel + DNS confirm
   'noreply@acmedigital.com',                -- from_email
   'Acme Digital',                           -- from_name
-  '#0071e3'                                 -- brand colour (hex; optional)
+  '#0071e3',                                -- brand colour (hex; optional)
+  'GB'                                      -- ISO-3166 alpha-2; locks Stripe Connect country
 )
 ON CONFLICT (slug) DO NOTHING;
 
@@ -127,10 +134,20 @@ https://voice-builder.acmedigital.com/dashboard/settings
 
 1. Sign in via magic link
 2. Click the **Settings** link in the dashboard header
-3. Click **Set up payments**
-4. Walk through Stripe's hosted Connect Express onboarding (KYC, bank,
+3. Confirm the **country** dropdown matches their registered business —
+   Stripe locks this at account creation and there's no way to change it
+   later without abandoning the account
+4. Click **Set up payments**
+5. Walk through Stripe's hosted Connect Express onboarding (KYC, bank,
    ID verification — Stripe handles all of this)
-5. Land back on the settings page with green **"Connected"** status
+6. Land back on the settings page with green **"Connected"** status
+
+> If an owner already started Stripe onboarding under the wrong country (the
+> hardcoded GB default before migration 008), the fix is to clear both
+> `stripe_connect_account_id` and `stripe_connect_onboarding_complete` on
+> their `vb.agencies` row, set `stripe_country` to the correct value, and
+> have them click **Set up payments** again. The orphaned GB account in
+> Stripe is harmless — archive it manually in the Connect dashboard.
 
 Once onboarded, their `vb.agencies.stripe_connect_account_id` is set and
 `stripe_connect_onboarding_complete = true`. SMB subscriptions from that
