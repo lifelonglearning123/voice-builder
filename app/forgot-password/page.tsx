@@ -16,7 +16,9 @@ export default function ForgotPasswordPage() {
     try {
       const supabase = createSupabaseBrowserClient();
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        // Land on the server route so the PKCE code exchange happens there
+        // (it can read the verifier cookie even when the browser JS can't).
+        redirectTo: `${window.location.origin}/auth/confirm?next=/reset-password`,
       });
       if (error) throw error;
       setView({ kind: 'sent', email: email.trim() });

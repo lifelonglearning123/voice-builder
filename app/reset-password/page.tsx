@@ -17,10 +17,18 @@ export default function ResetPasswordPage() {
     if (ran.current) return;
     ran.current = true;
 
-    // Supabase sends the reset token as a hash fragment (#access_token=...).
-    // We need to establish the session before we can update the password.
+    // The normal path is /auth/confirm → here, with a session cookie already
+    // set by the server. We still defensively handle:
+    //   - implicit flow hash (#access_token=…) — older email templates
+    //   - ?code= in the query — direct hits to /reset-password from old
+    //     reset emails that pre-date /auth/confirm
+    //   - ?error=… surfaced by /auth/confirm bouncing us here on failure
     (async () => {
       try {
+        const qs = new URLSearchParams(window.location.search);
+        const queryError = qs.get('error_description') || qs.get('error');
+        if (queryError) throw new Error(decodeURIComponent(queryError));
+
         const supabase = createSupabaseBrowserClient();
         const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
         if (hash) {
@@ -35,11 +43,11 @@ export default function ResetPasswordPage() {
             window.history.replaceState(null, '', window.location.pathname);
           }
         }
-        // Also handle PKCE code flow
-        const code = new URLSearchParams(window.location.search).get('code');
+        const code = qs.get('code');
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
+          window.history.replaceState(null, '', window.location.pathname);
         }
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('Reset link is invalid or has expired.');
