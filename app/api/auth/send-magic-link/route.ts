@@ -33,7 +33,11 @@ interface SendArgs {
   // Optional — only the signup form sends these. Login does not, because
   // an existing user already has them on record.
   full_name?: string;
+  /** E.164 international format (e.g. +447700900123). Validated server-side. */
   phone?: string;
+  /** ISO-3166 alpha-2 (e.g. GB, US). Stamped on the GHL contact's country
+   *  field for segmentation. Derived from the phone-country dropdown. */
+  phone_country?: string;
 }
 
 export async function POST(request: Request) {
@@ -54,6 +58,7 @@ export async function POST(request: Request) {
   // prevents, but be defensive on the server side).
   const fullName = body.full_name?.trim() ?? '';
   let phone = body.phone?.trim() ?? '';
+  let phoneCountry = body.phone_country?.trim().toUpperCase() ?? '';
   // Belt-and-braces: the signup form now sends E.164 (`+44…`). If anything
   // arrives without a leading `+` (older client, direct API hit, etc.) we
   // refuse to forward it to GHL — sending a bare national number would
@@ -63,6 +68,13 @@ export async function POST(request: Request) {
   if (phone && !/^\+[1-9]\d{5,14}$/.test(phone)) {
     console.warn('[send-magic-link] non-E.164 phone rejected:', phone);
     phone = '';
+    phoneCountry = '';
+  }
+  // ISO-3166 alpha-2 sanity check. Drop anything that doesn't fit so GHL
+  // doesn't get garbage on the contact's country field.
+  if (phoneCountry && !/^[A-Z]{2}$/.test(phoneCountry)) {
+    console.warn('[send-magic-link] invalid phone_country rejected:', phoneCountry);
+    phoneCountry = '';
   }
 
   // Resolve the agency this signup/login belongs to.
@@ -151,9 +163,10 @@ export async function POST(request: Request) {
       // Signup-only — login requests don't send these. The first magic-link
       // hit creates the GHL contact with the user's profile attached; later
       // login emails for the same address upsert by email alone and GHL
-      // keeps the previously stored name/phone.
+      // keeps the previously stored name/phone/country.
       contactName: fullName || undefined,
       contactPhone: phone || undefined,
+      contactCountry: phoneCountry || undefined,
     });
   } catch (e) {
     console.error('[send-magic-link] send failed:', e);

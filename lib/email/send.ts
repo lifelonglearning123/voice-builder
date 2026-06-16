@@ -34,9 +34,12 @@ export interface SendEmailArgs {
   ghl?: GhlConfig | null;
   /** Optional recipient profile. When delivering via GHL these write to the
    *  upserted contact so the agency's CRM has a name/phone on the record,
-   *  not just an email. Ignored on Resend (which has no contact concept). */
+   *  not just an email. Ignored on Resend (which has no contact concept).
+   *  `contactCountry` is ISO-3166 alpha-2; useful for GHL segmentation
+   *  alongside the E.164 phone. */
   contactName?: string;
   contactPhone?: string;
+  contactCountry?: string;
 }
 
 export async function sendEmail(args: SendEmailArgs): Promise<void> {
@@ -52,6 +55,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<void> {
         fromName: args.fromName,
         contactName: args.contactName,
         contactPhone: args.contactPhone,
+        contactCountry: args.contactCountry,
       });
       return;
     } catch (e) {

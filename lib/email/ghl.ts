@@ -35,9 +35,15 @@ export interface GhlSendArgs {
    *  contact during the upsert so the contact card has more than an email
    *  on it. Safe to omit — GHL keeps any existing values if we don't send
    *  the field, so subsequent email-only sends won't wipe a name/phone
-   *  populated by an earlier signup. */
+   *  populated by an earlier signup.
+   *
+   *  Phone should already be E.164 (`+44…`). Country is ISO-3166 alpha-2
+   *  (`GB`, `US`, `AU`) and gets stamped on GHL's `country` field —
+   *  redundant with the country code in the phone but gives GHL a clean
+   *  segmentation handle. */
   contactName?: string;
   contactPhone?: string;
+  contactCountry?: string;
 }
 
 export async function sendEmailViaGhl(
@@ -48,6 +54,7 @@ export async function sendEmailViaGhl(
     email: args.to,
     name: args.contactName,
     phone: args.contactPhone,
+    country: args.contactCountry,
   });
   await sendMessage(config, contactId, args);
 }
@@ -56,6 +63,7 @@ interface UpsertContactArgs {
   email: string;
   name?: string;
   phone?: string;
+  country?: string;
 }
 
 // Tag stamped on every contact we touch — lets agencies filter / segment
@@ -80,7 +88,15 @@ async function upsertContact(
     if (lastName) payload.lastName = lastName;
   }
   if (args.phone?.trim()) {
+    // Phone is already E.164 by the time it reaches here (the signup form
+    // formats with the country dropdown; the API rejects non-E.164). The
+    // leading + + calling-code prefix is what stops GHL stamping the
+    // location's default country code onto the number.
     payload.phone = args.phone.trim();
+  }
+  if (args.country?.trim()) {
+    // GHL expects ISO-3166 alpha-2 (uppercase) on the country field.
+    payload.country = args.country.trim().toUpperCase();
   }
 
   const res = await fetch(`${GHL_BASE}/contacts/upsert`, {

@@ -22,6 +22,10 @@ export interface AgencyRow {
   brand_color: string | null;
   stripe_connect_account_id: string | null;
   stripe_connect_onboarding_complete: boolean;
+  /** ISO-3166 alpha-2, set during Stripe Connect onboarding. Doubles as the
+   *  default country for downstream UX (phone input on signup, etc.). Has
+   *  a NOT NULL default of 'GB' from migration 008. */
+  stripe_country: string;
   client_price_pence: number | null;
   client_currency: string | null;
   from_email: string | null;

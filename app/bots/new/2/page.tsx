@@ -24,15 +24,6 @@ type GenderFilter = 'all' | 'male' | 'female';
 // the markets we serve.
 const ALLOWED_ACCENTS = new Set(['american', 'british', 'english']);
 
-const TONE_CHIPS = [
-  'Friendly',
-  'Professional',
-  'Warm',
-  'Brisk',
-  'Empathetic',
-  'Reassuring',
-];
-
 export default function Step2Page() {
   const router = useRouter();
   const { draft, patch, status } = useWizard();
@@ -88,17 +79,29 @@ export default function Step2Page() {
     () => uniqueLowercase(catalogue, (v) => v.accent),
     [catalogue],
   );
-  const ageOptions = useMemo(
-    () => uniqueLowercase(catalogue, (v) => v.age),
-    [catalogue],
-  );
+  // Dedupe age values via the canonical form. Retell ships both
+  // "middle_aged" and "middleaged" (and similar near-duplicates for other
+  // ages) which used to surface as two separate filter chips both
+  // displaying as "Middle-aged" — one of which had no matching voices
+  // once the accent allow-list was applied. Normalizing here collapses
+  // those variants to a single chip.
+  const ageOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of catalogue) {
+      if (v.age) set.add(normalizeAge(v.age));
+    }
+    return Array.from(set).sort();
+  }, [catalogue]);
 
   const filteredVoices = useMemo(() => {
     const q = search.trim().toLowerCase();
     return catalogue.filter((v) => {
       if (genderFilter !== 'all' && v.gender?.toLowerCase() !== genderFilter) return false;
       if (accentFilter !== 'all' && v.accent?.toLowerCase() !== accentFilter) return false;
-      if (ageFilter !== 'all' && v.age?.toLowerCase() !== ageFilter) return false;
+      // Match the filter against the normalized age too, so picking
+      // "middle-aged" finds voices whose raw age is either
+      // "middle_aged" or "middleaged".
+      if (ageFilter !== 'all' && normalizeAge(v.age ?? '') !== ageFilter) return false;
       if (!q) return true;
       // Exclude provider from the search haystack — we don't surface tech
       // provider names to operators.
@@ -111,31 +114,15 @@ export default function Step2Page() {
     return <main className="mx-auto max-w-3xl px-6 py-12 text-slate-500">Loading…</main>;
   }
 
-  const TONE_CAP = 2;
-
-  function toggleTone(chip: string) {
-    const current = draft!.tone_chips;
-    if (current.includes(chip)) {
-      patch({ tone_chips: current.filter((c) => c !== chip) });
-      return;
-    }
-    const next =
-      current.length >= TONE_CAP
-        ? [...current.slice(current.length - TONE_CAP + 1), chip]
-        : [...current, chip];
-    patch({ tone_chips: next });
-  }
-
   const selectedVoice = voices?.find((v) => v.voice_id === draft.voice_id) ?? null;
   const hasVoice = !!selectedVoice;
-  const canContinue =
-    !!draft.opening_line.trim() && draft.tone_chips.length >= 1 && hasVoice;
+  const canContinue = !!draft.opening_line.trim() && hasVoice;
 
   return (
     <StepShell
       {...wizardStep('voice')}
       title="How it sounds"
-      description="Pick a voice, set the tone, and write the opening line."
+      description="Pick a voice and write the opening line."
       backHref="/bots/new/1"
       nextHref="/bots/new/6"
       nextDisabled={!canContinue}
@@ -261,29 +248,6 @@ export default function Step2Page() {
               </p>
             </>
           )}
-        </Field>
-
-        <Field label="Tone" hint="Pick up to 2 — click a third to swap.">
-          <div className="flex flex-wrap gap-2">
-            {TONE_CHIPS.map((chip) => {
-              const active = draft.tone_chips.includes(chip);
-              return (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => toggleTone(chip)}
-                  aria-pressed={active}
-                  className={`rounded-full border px-3 py-1 text-sm transition ${
-                    active
-                      ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
-                      : 'border-slate-300 text-slate-700 hover:border-slate-500'
-                  }`}
-                >
-                  {chip}
-                </button>
-              );
-            })}
-          </div>
         </Field>
 
         <Field
@@ -483,12 +447,33 @@ function humanizeLabel(raw: string): string {
     .replace(/(^|\s)([a-z])/g, (_, sep, ch: string) => sep + ch.toUpperCase());
 }
 
+/** Canonical age token. Retell's catalogue contains near-duplicate values
+ *  like "middle_aged" / "middleaged" — both rendered as "Middle-aged" by
+ *  humanizeAge, which used to show up as two identical filter chips. We
+ *  collapse them here before deduping and use the same function when
+ *  matching the active filter against each voice's raw age. */
+function normalizeAge(raw: string): string {
+  const lower = raw.toLowerCase().replace(/[\s-]/g, '_');
+  if (lower === 'old' || lower === 'senior' || lower === 'mature') return 'mature';
+  if (lower === 'middle_aged' || lower === 'middleaged') return 'middle_aged';
+  if (lower === 'young' || lower === 'youth') return 'young';
+  if (lower === 'child' || lower === 'kid') return 'child';
+  return lower;
+}
+
 function humanizeAge(raw: string): string {
   // Soften the typical Retell age labels into something more presentable.
-  const lower = raw.toLowerCase();
-  if (lower === 'old' || lower === 'senior') return 'Mature';
-  if (lower === 'middle_aged' || lower === 'middleaged') return 'Middle-aged';
-  if (lower === 'young' || lower === 'youth') return 'Young';
-  if (lower === 'child' || lower === 'kid') return 'Child';
-  return humanizeLabel(raw);
+  const canonical = normalizeAge(raw);
+  switch (canonical) {
+    case 'mature':
+      return 'Mature';
+    case 'middle_aged':
+      return 'Middle-aged';
+    case 'young':
+      return 'Young';
+    case 'child':
+      return 'Child';
+    default:
+      return humanizeLabel(raw);
+  }
 }
