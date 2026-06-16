@@ -30,6 +30,10 @@ interface SendArgs {
   email?: string;
   next?: string;
   agency?: string;
+  // Optional — only the signup form sends these. Login does not, because
+  // an existing user already has them on record.
+  full_name?: string;
+  phone?: string;
 }
 
 export async function POST(request: Request) {
@@ -44,6 +48,12 @@ export async function POST(request: Request) {
   if (!email || !email.includes('@')) {
     return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
   }
+
+  // Signup-only fields. Trim to empty so we can distinguish "field not
+  // present" (login) from "field present but blank" (which the form
+  // prevents, but be defensive on the server side).
+  const fullName = body.full_name?.trim() ?? '';
+  const phone = body.phone?.trim() ?? '';
 
   // Resolve the agency this signup/login belongs to.
   const agency = await resolveAgency({
@@ -78,10 +88,26 @@ export async function POST(request: Request) {
   if (body.agency) callbackQuery.set('agency', body.agency);
   const redirectTo = `${origin}/auth/callback?${callbackQuery.toString()}`;
 
+  // Pass full_name / phone via options.data so Supabase stores them on the
+  // user's raw_user_meta_data when the magic link is first verified. The
+  // post-signin route then reads them and copies into vb.agency_clients so
+  // queries don't have to dig through JSONB.
+  //
+  // Note: options.data is only persisted on user *creation*. If the user
+  // already exists (e.g. retried signup), these fields are silently ignored
+  // by Supabase — that's intentional, we don't want a signup form
+  // overwriting a previously-collected name.
+  const linkOptions: { redirectTo: string; data?: Record<string, string> } = { redirectTo };
+  if (fullName || phone) {
+    linkOptions.data = {};
+    if (fullName) linkOptions.data.full_name = fullName;
+    if (phone) linkOptions.data.phone = phone;
+  }
+
   const { data, error } = await supabase.auth.admin.generateLink({
     type: 'magiclink',
     email,
-    options: { redirectTo },
+    options: linkOptions,
   });
 
   if (error || !data.properties?.action_link) {

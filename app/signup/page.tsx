@@ -26,7 +26,9 @@ function SignupInner() {
   // sites resolve agency from the Host header.
   const agencySlug = params.get('agency');
 
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [view, setView] = useState<View>({ kind: 'form' });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -38,6 +40,8 @@ function SignupInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email.trim(),
+          full_name: fullName.trim(),
+          phone: phone.trim(),
           next: '/dashboard',
           agency: agencySlug ?? undefined,
         }),
@@ -137,18 +141,36 @@ function SignupInner() {
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-3">
         <input
-          type="email"
+          type="text"
           required
           autoFocus
+          autoComplete="name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          placeholder="Full name"
+          className="wizard-focus block w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 transition-colors focus:border-slate-500"
+        />
+        <input
+          type="email"
+          required
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
           className="wizard-focus block w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 transition-colors focus:border-slate-500"
         />
+        <input
+          type="tel"
+          required
+          autoComplete="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="Phone number"
+          className="wizard-focus block w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 transition-colors focus:border-slate-500"
+        />
         <button
           type="submit"
-          disabled={submitting || !email.trim()}
+          disabled={submitting || !fullName.trim() || !email.trim() || !phone.trim()}
           className="wizard-pill w-full justify-center"
         >
           {submitting ? 'Sending…' : 'Create account'}

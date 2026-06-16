@@ -24,11 +24,12 @@ import { resolveAgency } from '@/lib/agency/resolve';
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
-  const userId = await resolveUserId(request);
-  if (!userId) {
+  const resolved = await resolveUser(request);
+  if (!resolved) {
     console.warn('[post-signin] no user found from token or cookie');
     return NextResponse.json({ ok: true, provisioned: false, reason: 'no_user' });
   }
+  const { id: userId, fullName, phone } = resolved;
 
   try {
     const service = createSupabaseServiceClient();
@@ -70,12 +71,38 @@ export async function POST(request: Request) {
         userId,
         agency_slug: agency.slug,
       });
+      // Backfill name/phone on the existing client row if we have them and
+      // the row is missing them — handles users who signed up before the
+      // form started capturing those fields.
+      if (
+        (clientRows?.length ?? 0) > 0 &&
+        (fullName || phone)
+      ) {
+        const patch: { full_name?: string; phone?: string } = {};
+        if (fullName) patch.full_name = fullName;
+        if (phone) patch.phone = phone;
+        await service
+          .from('agency_clients')
+          .update(patch)
+          .eq('agency_id', agency.id)
+          .eq('user_id', userId)
+          .or('full_name.is.null,phone.is.null');
+      }
       return NextResponse.json({ ok: true, provisioned: false, reason: 'existing_member' });
     }
 
+    const insertRow: {
+      agency_id: string;
+      user_id: string;
+      full_name?: string;
+      phone?: string;
+    } = { agency_id: agency.id, user_id: userId };
+    if (fullName) insertRow.full_name = fullName;
+    if (phone) insertRow.phone = phone;
+
     const { error } = await service
       .from('agency_clients')
-      .insert({ agency_id: agency.id, user_id: userId });
+      .insert(insertRow);
     if (error) {
       console.error('[post-signin] insert failed:', error);
       return NextResponse.json(
@@ -99,7 +126,13 @@ export async function POST(request: Request) {
   }
 }
 
-async function resolveUserId(request: Request): Promise<string | null> {
+interface ResolvedUser {
+  id: string;
+  fullName: string;
+  phone: string;
+}
+
+async function resolveUser(request: Request): Promise<ResolvedUser | null> {
   // Preferred: explicit bearer token from the client.
   const authHeader = request.headers.get('authorization');
   if (authHeader?.toLowerCase().startsWith('bearer ')) {
@@ -107,7 +140,7 @@ async function resolveUserId(request: Request): Promise<string | null> {
     if (token) {
       const service = createSupabaseServiceClient();
       const { data, error } = await service.auth.getUser(token);
-      if (!error && data?.user) return data.user.id;
+      if (!error && data?.user) return pickProfile(data.user);
       if (error) console.warn('[post-signin] bearer token rejected:', error.message);
     }
   }
@@ -118,5 +151,14 @@ async function resolveUserId(request: Request): Promise<string | null> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  return user?.id ?? null;
+  return user ? pickProfile(user) : null;
+}
+
+function pickProfile(user: { id: string; user_metadata?: Record<string, unknown> | null }): ResolvedUser {
+  const meta = user.user_metadata ?? {};
+  return {
+    id: user.id,
+    fullName: typeof meta.full_name === 'string' ? meta.full_name.trim() : '',
+    phone: typeof meta.phone === 'string' ? meta.phone.trim() : '',
+  };
 }
