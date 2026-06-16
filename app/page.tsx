@@ -46,6 +46,7 @@ export default async function HomePage() {
   ];
 
   const price = formatPrice(agency.pricePence, agency.currency);
+  const copy = agency.marketingCopy;
 
   return (
     <MarketingShell agency={agency} signedIn={!!user} activeRoute="home">
@@ -143,7 +144,7 @@ export default async function HomePage() {
               <div>
                 <p className="stat-number">12 min</p>
                 <p className="mt-3 text-sm tracking-tight text-slate-600">
-                  From signing up... to a live UK phone number ringing.
+                  From signing up... to a live {copy.countryAdj} phone number ringing.
                   Two sentences about your business and the AI does the rest.
                 </p>
               </div>
@@ -170,7 +171,7 @@ export default async function HomePage() {
           </Reveal>
 
           <RevealGroup className="mt-16 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map((step, i) => (
+            {buildSteps(copy.countryAdj).map((step, i) => (
               <Reveal key={step.title}>
                 <div className="marketing-card flex h-full flex-col p-7">
                   <div
@@ -227,7 +228,7 @@ export default async function HomePage() {
             <ProofRow
               eyebrow="Learns your business"
               headline="Trained on you. Not the internet."
-              body="Two sentences and a website URL. The AI reads every page you’ve ever published — services, hours, prices, the awkward FAQs — and only answers from that. So when a caller asks about a £180 boiler service... it quotes £180. Not £80. Not £280. No hallucinated prices. No off-brand replies. No ‘as an AI language model.’"
+              body={`Two sentences and a website URL. The AI reads every page you’ve ever published — services, hours, prices, the awkward FAQs — and only answers from that. So when a caller asks about a ${copy.industry.priceLabel} ${copy.industry.service}... it quotes ${copy.industry.priceLabel}. Not ${cheaperPrice(copy.industry.priceLabel)}. Not ${pricierPrice(copy.industry.priceLabel)}. No hallucinated prices. No off-brand replies. No ‘as an AI language model.’`}
               imageRight={false}
             />
           </div>
@@ -299,7 +300,7 @@ export default async function HomePage() {
           </Reveal>
           <Reveal delayMs={160}>
             <p className="mx-auto mt-6 max-w-xl text-base leading-snug tracking-tight text-slate-600 md:text-lg">
-              One UK number. Unlimited inbound minutes. Every call recorded.
+              One {copy.countryAdj} number. Unlimited inbound minutes. Every call recorded.
               Every transcript emailed. Every integration included. Cancel from
               your dashboard in two clicks... no exit fee, no notice period,
               no awkward phone call.
@@ -519,24 +520,51 @@ function DotIcon() {
   );
 }
 
-const STEPS = [
-  {
-    title: 'Describe your business',
-    body: 'Two sentences and a website URL. The AI reads every page and drafts a receptionist that already knows your services... your hours... your tone.',
-  },
-  {
-    title: 'Pick a voice',
-    body: 'Four production voices. Preview each one in the wizard before you commit. Switch later if your customers like a different one better.',
-  },
-  {
-    title: 'Plug it in',
-    body: 'A UK number is provisioned in seconds. Point your existing line to it... or use it as a fresh dedicated number. No carrier paperwork.',
-  },
-  {
-    title: 'Watch it answer',
-    body: 'Every call recorded. Every word transcribed. Every lead in your inbox the second the caller hangs up. You sleep. It answers.',
-  },
-];
+function buildSteps(countryAdj: string): Array<{ title: string; body: string }> {
+  return [
+    {
+      title: 'Describe your business',
+      body: 'Two sentences and a website URL. The AI reads every page and drafts a receptionist that already knows your services... your hours... your tone.',
+    },
+    {
+      title: 'Pick a voice',
+      body: 'Four production voices. Preview each one in the wizard before you commit. Switch later if your customers like a different one better.',
+    },
+    {
+      title: 'Plug it in',
+      body: `A ${countryAdj} number is provisioned in seconds. Point your existing line to it... or use it as a fresh dedicated number. No carrier paperwork.`,
+    },
+    {
+      title: 'Watch it answer',
+      body: 'Every call recorded. Every word transcribed. Every lead in your inbox the second the caller hangs up. You sleep. It answers.',
+    },
+  ];
+}
+
+// Build the "Not £80. Not £280." beat under the boiler-service example.
+// We bump the local-currency-prefixed price up and down by a round amount
+// so the cadence works in any region — £180 → £80/£280, $180 → $80/$280,
+// CA$180 → CA$80/CA$280. Falls back gracefully if the label format isn't
+// what we expect.
+function priceParts(priceLabel: string): { prefix: string; number: number } | null {
+  const match = priceLabel.match(/^(\D+)(\d+)$/);
+  if (!match) return null;
+  const n = parseInt(match[2], 10);
+  if (!Number.isFinite(n)) return null;
+  return { prefix: match[1], number: n };
+}
+
+function cheaperPrice(priceLabel: string): string {
+  const p = priceParts(priceLabel);
+  if (!p) return priceLabel;
+  return `${p.prefix}${Math.max(1, p.number - 100)}`;
+}
+
+function pricierPrice(priceLabel: string): string {
+  const p = priceParts(priceLabel);
+  if (!p) return priceLabel;
+  return `${p.prefix}${p.number + 100}`;
+}
 
 const TESTIMONIALS = [
   {

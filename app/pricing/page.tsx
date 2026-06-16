@@ -14,6 +14,7 @@ export default async function PricingPage() {
   ]);
 
   const price = formatPrice(agency.pricePence, agency.currency);
+  const copy = agency.marketingCopy;
 
   return (
     <MarketingShell agency={agency} signedIn={!!user} activeRoute="pricing">
@@ -60,7 +61,7 @@ export default async function PricingPage() {
                 <span className="text-lg tracking-tight text-slate-500">/ month</span>
               </div>
               <p className="mt-3 text-sm tracking-tight text-slate-500">
-                Billed in {agency.currency}. Includes VAT for UK customers.
+                Billed in {agency.currency}.{copy.taxLine ? ` ${copy.taxLine}` : ''}
               </p>
 
               <div className="my-10 hairline" />
@@ -69,7 +70,7 @@ export default async function PricingPage() {
                 What&apos;s included
               </p>
               <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-                {INCLUDED.map((item) => (
+                {INCLUDED(copy.countryAdj).map((item) => (
                   <li key={item} className="flex items-start gap-2.5 text-sm tracking-tight text-slate-700">
                     <CheckIcon />
                     <span>{item}</span>
@@ -110,7 +111,7 @@ export default async function PricingPage() {
           </Reveal>
           <Reveal delayMs={160}>
             <p className="mt-6 max-w-2xl text-base leading-snug tracking-tight text-slate-600 md:text-lg">
-              The average UK SMB misses one in five inbound calls. Evenings. Weekends.
+              The average {copy.countryAdj} SMB misses one in five inbound calls. Evenings. Weekends.
               Lunch. Busy spells. The school run. Each one a customer who dialled the
               next name in Google before you could call back. Catch one of them per
               month... and the receptionist&apos;s already paid for itself twice over.
@@ -160,7 +161,7 @@ export default async function PricingPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {COMPARE_ROWS.map((row) => {
+                  {buildCompareRows(copy.comparePrices).map((row) => {
                     const cost = row.cost === '__price__' ? `${price}/mo` : row.cost;
                     return (
                       <tr key={row.option} className={row.highlight ? 'bg-[rgba(var(--agency-accent-rgb),0.04)]' : ''}>
@@ -208,8 +209,8 @@ export default async function PricingPage() {
   );
 }
 
-const INCLUDED = [
-  'A dedicated UK phone number',
+const INCLUDED = (countryAdj: string): string[] => [
+  `A dedicated ${countryAdj} phone number`,
   'Unlimited inbound calls (fair-use cap)',
   'Custom voice & opening line',
   'Full transcripts of every call',
@@ -239,12 +240,17 @@ const ROI_CARDS = [
   },
 ];
 
-const COMPARE_ROWS = [
-  { option: 'Live receptionist (part-time)', hours: 'Mon–Fri, 9–5', cost: '£900+', highlight: false },
-  { option: 'Answering service', hours: '24/7 (reads a script)', cost: '£250–£600', highlight: false },
-  { option: 'Voicemail', hours: '24/7 (8 in 10 hang up)', cost: '£0', highlight: false },
-  { option: 'This AI receptionist', hours: '24/7 (books the job)', cost: '__price__', highlight: true },
-];
+type ComparePrices = { liveReceptionist: string; answeringService: string; voicemail: string };
+type CompareRow = { option: string; hours: string; cost: string; highlight: boolean };
+
+function buildCompareRows(prices: ComparePrices): CompareRow[] {
+  return [
+    { option: 'Live receptionist (part-time)', hours: 'Mon–Fri, 9–5', cost: prices.liveReceptionist, highlight: false },
+    { option: 'Answering service', hours: '24/7 (reads a script)', cost: prices.answeringService, highlight: false },
+    { option: 'Voicemail', hours: '24/7 (8 in 10 hang up)', cost: prices.voicemail, highlight: false },
+    { option: 'This AI receptionist', hours: '24/7 (books the job)', cost: '__price__', highlight: true },
+  ];
+}
 
 function ArrowIcon() {
   return (

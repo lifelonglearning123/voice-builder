@@ -3,6 +3,17 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getMarketingAgency } from '@/lib/agency/marketing';
 import { MarketingShell } from '@/components/marketing/MarketingShell';
 import { Reveal, RevealGroup } from '@/components/marketing/Reveal';
+import type { RegionalCopy } from '@/lib/marketing/regional';
+
+interface Step {
+  eyebrow: string;
+  title: string;
+  body: string;
+  bullets: string[];
+  mockup: 'describe' | 'voice' | 'number' | 'live';
+}
+
+type MockupCopy = RegionalCopy['mockup'];
 
 export const runtime = 'nodejs';
 
@@ -12,6 +23,9 @@ export default async function HowItWorksPage() {
     supabase.auth.getUser(),
     getMarketingAgency(),
   ]);
+
+  const copy = agency.marketingCopy;
+  const steps = buildSteps(copy);
 
   return (
     <MarketingShell agency={agency} signedIn={!!user} activeRoute="how">
@@ -41,8 +55,14 @@ export default async function HowItWorksPage() {
 
       <section className="relative">
         <div className="mx-auto max-w-7xl px-6 py-16">
-          {STEPS.map((step, i) => (
-            <StepBlock key={step.title} index={i + 1} step={step} flip={i % 2 === 1} />
+          {steps.map((step, i) => (
+            <StepBlock
+              key={step.title}
+              index={i + 1}
+              step={step}
+              flip={i % 2 === 1}
+              mockup={copy.mockup}
+            />
           ))}
         </div>
       </section>
@@ -120,10 +140,12 @@ function StepBlock({
   index,
   step,
   flip,
+  mockup,
 }: {
   index: number;
-  step: (typeof STEPS)[number];
+  step: Step;
   flip: boolean;
+  mockup: MockupCopy;
 }) {
   return (
     <Reveal>
@@ -162,14 +184,20 @@ function StepBlock({
         </div>
         <div className="relative">
           <div className="hero-glow" aria-hidden />
-          <WizardMockup variant={step.mockup} />
+          <WizardMockup variant={step.mockup} mockup={mockup} />
         </div>
       </div>
     </Reveal>
   );
 }
 
-function WizardMockup({ variant }: { variant: 'describe' | 'voice' | 'number' | 'live' }) {
+function WizardMockup({
+  variant,
+  mockup,
+}: {
+  variant: 'describe' | 'voice' | 'number' | 'live';
+  mockup: MockupCopy;
+}) {
   return (
     <div className="relative overflow-hidden rounded-[28px] border border-slate-900/8 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_24px_60px_rgba(15,23,42,0.08)]">
       <div className="flex items-center gap-1.5 border-b border-slate-100 px-4 py-3">
@@ -181,27 +209,25 @@ function WizardMockup({ variant }: { variant: 'describe' | 'voice' | 'number' | 
         </span>
       </div>
       <div className="p-6">
-        {variant === 'describe' && <DescribeMock />}
+        {variant === 'describe' && <DescribeMock mockup={mockup} />}
         {variant === 'voice' && <VoiceMock />}
-        {variant === 'number' && <NumberMock />}
+        {variant === 'number' && <NumberMock mockup={mockup} />}
         {variant === 'live' && <LiveMock />}
       </div>
     </div>
   );
 }
 
-function DescribeMock() {
+function DescribeMock({ mockup }: { mockup: MockupCopy }) {
   return (
     <div>
       <p className="text-xs font-medium tracking-tight text-slate-500">Tell us about your business</p>
       <div className="mt-3 rounded-xl border border-slate-200 p-3 text-sm tracking-tight text-slate-700">
-        We&apos;re a family-run plumbing firm in north London. We do
-        emergency call-outs, boiler servicing, and bathroom installs.
-        Calls go to my mobile right now but I&apos;m missing half of them.
+        {mockup.describeBody}
       </div>
       <div className="mt-4 flex items-center justify-between text-xs">
         <span className="font-mono-tight uppercase tracking-[0.18em] text-slate-400">Website</span>
-        <span className="font-mono-tight tracking-tight text-slate-600">acme-plumbing.co.uk</span>
+        <span className="font-mono-tight tracking-tight text-slate-600">{mockup.websiteDomain}</span>
       </div>
     </div>
   );
@@ -238,13 +264,13 @@ function VoiceMock() {
   );
 }
 
-function NumberMock() {
+function NumberMock({ mockup }: { mockup: MockupCopy }) {
   return (
     <div>
       <div className="rounded-lg border border-green-200 bg-green-50 p-3">
         <p className="text-xs font-medium text-green-900">Number selected</p>
-        <p className="mt-1 font-mono-tight text-base text-green-900">+44 20 4587 9020</p>
-        <p className="mt-2 text-[11px] text-green-800">London local · forwards from your existing line</p>
+        <p className="mt-1 font-mono-tight text-base text-green-900">{mockup.phoneNumber}</p>
+        <p className="mt-2 text-[11px] text-green-800">{mockup.phoneCityLabel} · forwards from your existing line</p>
       </div>
       <p className="mt-4 text-[11px] tracking-tight text-slate-500">
         Activates the moment your subscription starts. No carrier paperwork.
@@ -284,52 +310,54 @@ function LiveMock() {
   );
 }
 
-const STEPS = [
-  {
-    eyebrow: 'Step 1',
-    title: 'Describe your business.',
-    body: 'Two sentences. A website URL. That&apos;s it. The AI reads every page you&apos;ve published — services, hours, prices, the awkward FAQs — and drafts a receptionist that already sounds like you. No forms. No long questionnaire. No tedious admin you&apos;ll abandon halfway.',
-    bullets: [
-      'Plain English — no fields to fill in',
-      'Reads your website, FAQs and existing pages',
-      'Edit anything the AI gets wrong before going live',
-    ],
-    mockup: 'describe' as const,
-  },
-  {
-    eyebrow: 'Step 2',
-    title: 'Pick a voice.',
-    body: 'Four production voices. Each one preview-able in a single tap. Pick the one your customers will be most comfortable hearing... and switch later if a different one tests better. No cloning. No deepfakes. No American accents on British plumbers.',
-    bullets: [
-      'Friendly · Professional · Calm · Confident',
-      'Natural pauses and back-channelling',
-      'UK English voices only — by default',
-    ],
-    mockup: 'voice' as const,
-  },
-  {
-    eyebrow: 'Step 3',
-    title: 'Get a phone number.',
-    body: 'Pick a local UK number in the area code your customers expect. Forward your existing line to it with one command from your carrier... or use it as a fresh dedicated number. Live the moment your subscription starts. No SIM cards. No engineer visit.',
-    bullets: [
-      'London, Manchester, Birmingham — any UK area code',
-      'Forward your existing number in one carrier command',
-      'Live the moment your subscription starts',
-    ],
-    mockup: 'number' as const,
-  },
-  {
-    eyebrow: 'Step 4',
-    title: 'Watch it answer.',
-    body: 'Every call recorded. Every word transcribed. Every lead summarised and dropped into your inbox the second the caller hangs up. No call notes to type. No callbacks to chase. You sleep. It answers. You wake up to bookings.',
-    bullets: [
-      'Real-time call dashboard',
-      'Audio recordings stored 90 days',
-      'CSV export and CRM integrations',
-    ],
-    mockup: 'live' as const,
-  },
-];
+function buildSteps(copy: RegionalCopy): Step[] {
+  return [
+    {
+      eyebrow: 'Step 1',
+      title: 'Describe your business.',
+      body: "Two sentences. A website URL. That's it. The AI reads every page you've published — services, hours, prices, the awkward FAQs — and drafts a receptionist that already sounds like you. No forms. No long questionnaire. No tedious admin you'll abandon halfway.",
+      bullets: [
+        'Plain English — no fields to fill in',
+        'Reads your website, FAQs and existing pages',
+        'Edit anything the AI gets wrong before going live',
+      ],
+      mockup: 'describe',
+    },
+    {
+      eyebrow: 'Step 2',
+      title: 'Pick a voice.',
+      body: `Four production voices. Each one preview-able in a single tap. Pick the one your customers will be most comfortable hearing... and switch later if a different one tests better. No cloning. No deepfakes. ${copy.accentExclusion}`,
+      bullets: [
+        'Friendly · Professional · Calm · Confident',
+        'Natural pauses and back-channelling',
+        `${copy.voiceLanguage} voices only — by default`,
+      ],
+      mockup: 'voice',
+    },
+    {
+      eyebrow: 'Step 3',
+      title: 'Get a phone number.',
+      body: `Pick a local ${copy.countryAdj} number in the area code your customers expect. Forward your existing line to it with one command from your carrier... or use it as a fresh dedicated number. Live the moment your subscription starts. No SIM cards. No engineer visit.`,
+      bullets: [
+        `${copy.areaCodeCities} — any ${copy.countryAdj} area code`,
+        'Forward your existing number in one carrier command',
+        'Live the moment your subscription starts',
+      ],
+      mockup: 'number',
+    },
+    {
+      eyebrow: 'Step 4',
+      title: 'Watch it answer.',
+      body: 'Every call recorded. Every word transcribed. Every lead summarised and dropped into your inbox the second the caller hangs up. No call notes to type. No callbacks to chase. You sleep. It answers. You wake up to bookings.',
+      bullets: [
+        'Real-time call dashboard',
+        'Audio recordings stored 90 days',
+        'CSV export and CRM integrations',
+      ],
+      mockup: 'live',
+    },
+  ];
+}
 
 const AFTER_CALL = [
   {

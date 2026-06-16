@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getMarketingAgency, formatPrice } from '@/lib/agency/marketing';
 import { MarketingShell } from '@/components/marketing/MarketingShell';
 import { Reveal } from '@/components/marketing/Reveal';
+import type { RegionalCopy } from '@/lib/marketing/regional';
 
 export const runtime = 'nodejs';
 
@@ -14,7 +15,7 @@ export default async function FaqPage() {
   ]);
   const price = formatPrice(agency.pricePence, agency.currency);
 
-  const sections = buildFaqs(price);
+  const sections = buildFaqs(price, agency.marketingCopy);
 
   return (
     <MarketingShell agency={agency} signedIn={!!user} activeRoute="faq">
@@ -101,7 +102,7 @@ export default async function FaqPage() {
   );
 }
 
-function buildFaqs(price: string) {
+function buildFaqs(price: string, copy: RegionalCopy) {
   return [
     {
       title: 'Getting started',
@@ -116,7 +117,7 @@ function buildFaqs(price: string) {
         },
         {
           q: 'Can I use my existing phone number?',
-          a: 'Yes. You keep it. We provision a new UK number and you forward your existing line to it from your carrier — one command, sixty seconds. Callers still dial the number on your van or your business cards. The AI just answers it on your behalf.',
+          a: `Yes. You keep it. We provision a new ${copy.countryAdj} number and you forward your existing line to it from your carrier — one command, sixty seconds. Callers still dial the number on your van or your business cards. The AI just answers it on your behalf.`,
         },
       ],
     },
@@ -125,7 +126,7 @@ function buildFaqs(price: string) {
       items: [
         {
           q: 'Are there setup fees or per-minute charges?',
-          a: `No. ${price} a month covers a dedicated UK phone number, unlimited inbound calls within fair use, transcripts, recordings, integrations, the lot. Nothing to add on. Nothing in the small print.`,
+          a: `No. ${price} a month covers a dedicated ${copy.countryAdj} phone number, unlimited inbound calls within fair use, transcripts, recordings, integrations, the lot. Nothing to add on. Nothing in the small print.`,
         },
         {
           q: 'Can I cancel any time?',
@@ -146,7 +147,7 @@ function buildFaqs(price: string) {
         },
         {
           q: 'What language and accent does it use?',
-          a: 'UK English. Four voices — friendly, professional, calm, confident. No American voices on UK businesses by default. Your callers from Stoke or Stockport will hear someone who sounds local.',
+          a: `${copy.voiceLanguage}. Four voices — friendly, professional, calm, confident. ${copy.accentExclusion} Your callers from ${copy.callerLocale} will hear someone who sounds local.`,
         },
         {
           q: 'Can it sound like our existing receptionist?',

@@ -1,11 +1,22 @@
 import { headers } from 'next/headers';
 import { resolveAgency, type AgencyRow } from './resolve';
+import {
+  getRegionalCopy,
+  resolveRegion,
+  type RegionCode,
+  type RegionalCopy,
+} from '@/lib/marketing/regional';
 
 // Marketing-page theming. Each public route calls this once on the server to
 // determine which agency owns the request and what colours/copy to use.
 //
 // Falls back to a generic "Voice Builder" identity (slate accent) if no
 // agency resolves — covers preview URLs, dev, and bare *.vercel.app domains.
+//
+// Region (UK / US / CA / AU / IE / NZ) is controlled by the
+// MARKETING_COUNTRY env var. Each agency runs on its own Vercel deployment
+// so a single env var is the right granularity — the deploy *is* the
+// agency. Defaults to GB if unset or unrecognised.
 
 export interface MarketingAgency {
   /** Database id, null in the generic fallback. */
@@ -22,7 +33,17 @@ export interface MarketingAgency {
   currency: string;
   /** Whether this is the generic fallback (no real agency matched). */
   isFallback: boolean;
+  /** ISO-3166 alpha-2 region the marketing copy is written for. Derived
+   *  from MARKETING_COUNTRY env var; falls back to GB. */
+  marketingCountry: RegionCode;
+  /** Pre-resolved regional copy table — country adjective, voice
+   *  language, area code cities, industry example etc. Marketing pages
+   *  read substitution strings from here so we don't ship "UK" in the
+   *  copy of a US deployment. */
+  marketingCopy: RegionalCopy;
 }
+
+const FALLBACK_REGION: RegionCode = 'GB';
 
 const FALLBACK: MarketingAgency = {
   id: null,
@@ -32,6 +53,8 @@ const FALLBACK: MarketingAgency = {
   pricePence: 9900,
   currency: 'GBP',
   isFallback: true,
+  marketingCountry: FALLBACK_REGION,
+  marketingCopy: getRegionalCopy(FALLBACK_REGION),
 };
 
 export async function getMarketingAgency(opts?: {
@@ -42,6 +65,14 @@ export async function getMarketingAgency(opts?: {
   const row = await resolveAgency({ host, querySlug: opts?.querySlug ?? null });
   const overrides = readEnvOverrides();
 
+  // Marketing region is deployment-scoped via NEXT_PUBLIC_MARKETING_COUNTRY.
+  // Same value for every request — each agency owns its own Vercel project,
+  // so the env var is the single source of truth for which region's copy we
+  // render. NEXT_PUBLIC_ so client-side islands (e.g. the wizard's sample
+  // placeholder) can read it too.
+  const marketingCountry = resolveRegion(process.env.NEXT_PUBLIC_MARKETING_COUNTRY);
+  const marketingCopy = getRegionalCopy(marketingCountry);
+
   if (!row) {
     return {
       ...FALLBACK,
@@ -50,6 +81,8 @@ export async function getMarketingAgency(opts?: {
       brandColor: overrides.brandColor ?? FALLBACK.brandColor,
       pricePence: overrides.pricePence ?? FALLBACK.pricePence,
       currency: overrides.currency ?? FALLBACK.currency,
+      marketingCountry,
+      marketingCopy,
     };
   }
 
@@ -62,6 +95,8 @@ export async function getMarketingAgency(opts?: {
     pricePence: overrides.pricePence ?? row.client_price_pence ?? FALLBACK.pricePence,
     currency: (overrides.currency ?? row.client_currency ?? FALLBACK.currency).toUpperCase(),
     isFallback: false,
+    marketingCountry,
+    marketingCopy,
   };
 }
 

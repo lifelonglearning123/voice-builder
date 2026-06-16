@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useWizard } from '@/lib/wizard/context.tsx';
 import { wizardStep } from '@/lib/wizard/steps.ts';
 import type { PrefilledBot } from '@/src/prefill/types.ts';
+import { getRegionalCopy, getRegionFromEnv } from '@/lib/marketing/regional';
 
 type IndustryGroup = { category: string; items: string[] };
 
@@ -114,9 +115,11 @@ const ALL_INDUSTRIES: { label: string; category: string }[] = INDUSTRY_GROUPS.fl
   g.items.map((label) => ({ label, category: g.category })),
 );
 
-const SAMPLE_PLACEHOLDER = `I run a dental practice in Manchester. The receptionist is called Sarah. She books cleanings on our calendar (Mon-Fri 9-5), answers FAQs about price, parking, and opening hours, and takes a detailed message for anything she can't handle.
-
-Always capture name, phone, and email before booking. Never give medical advice.`;
+// Region-aware sample placeholder. Same template across regions — only the
+// city changes — so US Maverick users see "dental practice in Chicago"
+// while UK clients see "dental practice in Manchester". Inlined at build
+// time because NEXT_PUBLIC_MARKETING_COUNTRY is a public env var.
+const SAMPLE_PLACEHOLDER = getRegionalCopy(getRegionFromEnv()).wizardSamplePlaceholder;
 
 type PrefillResponse = {
   bot: PrefilledBot;
