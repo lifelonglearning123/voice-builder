@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import {
+  createSupabaseServerClient,
+  createSupabaseServiceClient,
+} from '@/lib/supabase/server';
 import { resolveAgency } from '@/lib/agency/resolve';
 import { ManageBillingButton } from './ManageBillingButton';
 
@@ -150,19 +153,78 @@ async function StaffPortfolioView({
   role: 'owner' | 'admin' | 'staff';
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
 }) {
-  // Count clients + bots for this agency.
-  const [{ count: clientCount }, { data: bots }] = await Promise.all([
-    supabase
-      .from('agency_clients')
-      .select('user_id', { count: 'exact', head: true })
-      .eq('agency_id', agency.id),
-    supabase
-      .from('bots')
-      .select('id, status, draft, updated_at')
-      .eq('agency_id', agency.id)
-      .order('updated_at', { ascending: false })
-      .limit(20),
-  ]);
+  // Count clients + bots for this agency. We also pull every client row
+  // (with name/phone/created_at) and every bot's owner+status so we can
+  // bucket clients into "live" vs "still onboarding" below — staff need to
+  // see who signed up but never finished the wizard so they can chase them.
+  const [{ count: clientCount }, { data: bots }, { data: allClients }, { data: ownerStatuses }] =
+    await Promise.all([
+      supabase
+        .from('agency_clients')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('agency_id', agency.id),
+      supabase
+        .from('bots')
+        .select('id, status, draft, updated_at')
+        .eq('agency_id', agency.id)
+        .order('updated_at', { ascending: false })
+        .limit(20),
+      supabase
+        .from('agency_clients')
+        .select('user_id, full_name, phone, created_at')
+        .eq('agency_id', agency.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('bots')
+        .select('owner_user_id, status, draft, updated_at')
+        .eq('agency_id', agency.id),
+    ]);
+
+  // Bucket each client's bots by owner so we can tell who has a live bot.
+  type OwnerBot = {
+    owner_user_id: string | null;
+    status: string;
+    draft: unknown;
+    updated_at: string;
+  };
+  const botsByOwner = new Map<string, OwnerBot[]>();
+  for (const b of (ownerStatuses as OwnerBot[] | null) ?? []) {
+    if (!b.owner_user_id) continue;
+    const arr = botsByOwner.get(b.owner_user_id) ?? [];
+    arr.push(b);
+    botsByOwner.set(b.owner_user_id, arr);
+  }
+
+  type ClientRow = {
+    user_id: string;
+    full_name: string | null;
+    phone: string | null;
+    created_at: string;
+  };
+  const clientRows = (allClients as ClientRow[] | null) ?? [];
+
+  // "Pending" = client has no bot in 'live' status. Either they never
+  // started the wizard, or they're still in 'draft'.
+  const pendingClients = clientRows.filter((c) => {
+    const myBots = botsByOwner.get(c.user_id) ?? [];
+    return !myBots.some((b) => b.status === 'live');
+  });
+
+  // Resolve emails for the pending set via the service role — agency_clients
+  // doesn't store email and RLS hides auth.users from regular sessions.
+  // Parallelised; bounded by pendingClients.length which is small in practice.
+  const service = createSupabaseServiceClient();
+  const emailEntries = await Promise.all(
+    pendingClients.map(async (c) => {
+      try {
+        const { data } = await service.auth.admin.getUserById(c.user_id);
+        return [c.user_id, data.user?.email ?? null] as const;
+      } catch {
+        return [c.user_id, null] as const;
+      }
+    }),
+  );
+  const emailByUser = new Map(emailEntries);
 
   return (
     <>
@@ -213,6 +275,69 @@ async function StaffPortfolioView({
                   <span className="text-xs text-slate-500">
                     Updated {timeAgo(b.updated_at)}
                   </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section
+        className="mt-6 rounded-xl border border-slate-200 bg-white p-6 wizard-fade-up"
+        style={{ animationDelay: '210ms' }}
+      >
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="text-sm font-semibold text-slate-900">Pending onboarding</h2>
+          <span className="text-xs text-slate-400">
+            {pendingClients.length} {pendingClients.length === 1 ? 'client' : 'clients'}
+          </span>
+        </div>
+        {pendingClients.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-500">
+            Everyone&apos;s live. Nothing to chase.
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-slate-100">
+            {pendingClients.map((c) => {
+              const myBots = botsByOwner.get(c.user_id) ?? [];
+              const draftBot = myBots.find((b) => b.status === 'draft');
+              const inWizard = !!draftBot;
+              const businessName =
+                (draftBot?.draft as { business_name?: string } | null)?.business_name ?? null;
+              const email = emailByUser.get(c.user_id);
+              const displayName = c.full_name?.trim() || email || 'Unnamed client';
+              return (
+                <li
+                  key={c.user_id}
+                  className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">{displayName}</p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                      {email && <span className="truncate">{email}</span>}
+                      {email && c.phone && <span className="text-slate-300">·</span>}
+                      {c.phone && <span>{c.phone}</span>}
+                    </p>
+                    {businessName && (
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        Building: <span className="text-slate-600">{businessName}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                        inWizard
+                          ? 'border-amber-200 bg-amber-50 text-amber-900'
+                          : 'border-slate-200 bg-slate-50 text-slate-600'
+                      }`}
+                    >
+                      {inWizard ? 'In wizard' : 'Not started'}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      Signed up {timeAgo(c.created_at)}
+                    </span>
+                  </div>
                 </li>
               );
             })}
