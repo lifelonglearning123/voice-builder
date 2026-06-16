@@ -65,7 +65,7 @@ export function CouponsSection({ agencyId, defaultCurrency }: Props) {
     setDeletingId(couponId);
     try {
       const res = await fetch(
-        `/api/agency/coupons/${encodeURIComponent(couponId)}`,
+        `/api/agency/coupons/${encodeURIComponent(couponId)}?agency_id=${encodeURIComponent(agencyId)}`,
         { method: 'DELETE' },
       );
       if (!res.ok) {

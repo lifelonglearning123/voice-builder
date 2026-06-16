@@ -44,11 +44,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
   }
 
-  // Load + authorise the bot
+  // Load + authorise the bot, then resolve the agency so we know whether
+  // the subscription lives on the platform Stripe or on a connected account
+  // (direct-charge mode). The customer portal must be opened on whichever
+  // account owns the customer.
   const service = createSupabaseServiceClient();
   const { data: bot, error: botError } = await service
     .from('bots')
-    .select('owner_user_id, client_stripe_subscription_id')
+    .select('owner_user_id, agency_id, client_stripe_subscription_id')
     .eq('id', botId)
     .single();
   if (botError || !bot) {
@@ -64,20 +67,40 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: agency } = await service
+    .from('agencies')
+    .select('stripe_connect_account_id, stripe_connect_onboarding_complete, use_direct_charges')
+    .eq('id', bot.agency_id)
+    .single();
+  const useDirect =
+    !!agency?.use_direct_charges &&
+    !!agency.stripe_connect_account_id &&
+    !!agency.stripe_connect_onboarding_complete;
+  const stripeRequestOptions = useDirect
+    ? { stripeAccount: agency!.stripe_connect_account_id! }
+    : undefined;
+
   const stripe = getStripe();
 
   try {
     // The customer ID is on the subscription. We fetch the sub once to find
-    // it. Could be cached on the bot row in a future iteration.
-    const sub = await stripe.subscriptions.retrieve(bot.client_stripe_subscription_id);
+    // it — same scope as the subscription itself.
+    const sub = await stripe.subscriptions.retrieve(
+      bot.client_stripe_subscription_id,
+      undefined,
+      stripeRequestOptions,
+    );
     const customerId =
       typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
 
     const { origin } = new URL(request.url);
-    const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${origin}/dashboard`,
-    });
+    const session = await stripe.billingPortal.sessions.create(
+      {
+        customer: customerId,
+        return_url: `${origin}/dashboard`,
+      },
+      stripeRequestOptions,
+    );
 
     return NextResponse.json({ url: session.url });
   } catch (e) {

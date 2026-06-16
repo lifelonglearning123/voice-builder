@@ -18,9 +18,18 @@ import { getStripe } from '@/lib/stripe';
 //     max_redemptions?: number | null,
 //   }
 //
-// Self-service coupon management for agency owners/admins. Every coupon is
-// created on the platform Stripe with `metadata.agency_id` so the checkout
-// route can reject cross-agency usage (see app/api/checkout/create-session).
+// Self-service coupon management for agency owners/admins.
+//
+// Two storage modes, picked per-agency:
+//
+//   - DIRECT (agency.use_direct_charges = true): coupons live on the
+//     agency's Connect account. Isolation is the connected-account boundary
+//     itself, so we don't tag with `metadata.agency_id` and don't filter by
+//     it. Listing returns every coupon on that account.
+//
+//   - PLATFORM (everyone else): coupons live on the platform Stripe and
+//     carry `metadata.agency_id`. The checkout route enforces the tag so
+//     codes can't leak across agencies sharing the platform account.
 
 export const runtime = 'nodejs';
 
@@ -63,6 +72,27 @@ async function authorize(
   return { ok: true };
 }
 
+/** Resolves which Stripe account this agency's coupons live on. Direct-mode
+ *  agencies get their connected account; everyone else falls back to the
+ *  platform (undefined). */
+async function resolveStripeScope(
+  agencyId: string,
+): Promise<{ stripeAccount: string } | undefined> {
+  const service = createSupabaseServiceClient();
+  const { data: agency } = await service
+    .from('agencies')
+    .select(
+      'stripe_connect_account_id, stripe_connect_onboarding_complete, use_direct_charges',
+    )
+    .eq('id', agencyId)
+    .single();
+  const useDirect =
+    !!agency?.use_direct_charges &&
+    !!agency.stripe_connect_account_id &&
+    !!agency.stripe_connect_onboarding_complete;
+  return useDirect ? { stripeAccount: agency!.stripe_connect_account_id! } : undefined;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const agencyId = searchParams.get('agency_id')?.trim();
@@ -76,15 +106,20 @@ export async function GET(request: Request) {
   }
 
   const stripe = getStripe();
+  const scope = await resolveStripeScope(agencyId);
+
   try {
     // Stripe doesn't support filtering coupons by metadata. List promotion
     // codes (smaller per-agency volume in practice) and filter client-side.
-    // Note: the SDK nests the coupon under `promotion.coupon`; expansion path
-    // must match.
-    const codes = await stripe.promotionCodes.list({
-      limit: 100,
-      expand: ['data.promotion.coupon'],
-    });
+    // In direct mode listing is naturally agency-scoped because the request
+    // targets the connected account; the metadata filter becomes a no-op.
+    const codes = await stripe.promotionCodes.list(
+      {
+        limit: 100,
+        expand: ['data.promotion.coupon'],
+      },
+      scope,
+    );
 
     const coupons = codes.data
       .map((pc) => {
@@ -92,8 +127,13 @@ export async function GET(request: Request) {
         // Skip if the coupon isn't expanded (string id) or is null.
         if (!raw || typeof raw === 'string') return null;
         const coupon = raw as Stripe.Coupon;
-        const md = (coupon.metadata ?? null) as Record<string, string> | null;
-        if (md?.agency_id !== agencyId) return null;
+        // Platform mode only: enforce metadata.agency_id so we don't bleed
+        // other agencies' codes into the response. Direct mode skips this
+        // because each connected account is naturally isolated.
+        if (!scope) {
+          const md = (coupon.metadata ?? null) as Record<string, string> | null;
+          if (md?.agency_id !== agencyId) return null;
+        }
         return {
           promotion_code_id: pc.id,
           coupon_id: coupon.id,
@@ -200,11 +240,14 @@ export async function POST(request: Request) {
 
   // ---- Create coupon + promotion code on Stripe ---------------------------
   const stripe = getStripe();
+  const scope = await resolveStripeScope(agencyId);
 
-  const couponArgs: Stripe.CouponCreateParams = {
-    duration,
-    metadata: { agency_id: agencyId },
-  };
+  const couponArgs: Stripe.CouponCreateParams = { duration };
+  // Only tag metadata in platform mode — direct mode is isolated by the
+  // connected-account boundary already.
+  if (!scope) {
+    couponArgs.metadata = { agency_id: agencyId };
+  }
   if (kind === 'percent') {
     couponArgs.percent_off = value;
   } else {
@@ -217,7 +260,7 @@ export async function POST(request: Request) {
 
   let coupon: Stripe.Coupon;
   try {
-    coupon = await stripe.coupons.create(couponArgs);
+    coupon = await stripe.coupons.create(couponArgs, scope);
   } catch (e) {
     console.error('[coupons] coupon create failed:', e);
     const msg = e instanceof Error ? e.message : 'Failed to create coupon.';
@@ -235,14 +278,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const promo = await stripe.promotionCodes.create(promoArgs);
+    const promo = await stripe.promotionCodes.create(promoArgs, scope);
     return NextResponse.json({ ok: true, code: promo.code });
   } catch (e) {
     // The coupon was already created; roll it back so we don't leave orphans
     // in Stripe when the promotion code (often the code collides with an
     // existing one) fails.
     try {
-      await stripe.coupons.del(coupon.id);
+      await stripe.coupons.del(coupon.id, undefined, scope);
     } catch (rollbackErr) {
       console.error('[coupons] rollback failed:', rollbackErr);
     }

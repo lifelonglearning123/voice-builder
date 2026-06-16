@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { COUNTRIES, toE164 } from '@/lib/countries';
 
 // /signup
 //
@@ -28,11 +29,24 @@ function SignupInner() {
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phoneCountry, setPhoneCountry] = useState('GB');
+  const [phoneNational, setPhoneNational] = useState('');
   const [view, setView] = useState<View>({ kind: 'form' });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Convert the country + national input to E.164 BEFORE sending so GHL
+    // stores the number with the right country code instead of guessing
+    // from its own location default (which was making every signup land
+    // as +44 regardless of where the SMB actually lived).
+    const phoneE164 = toE164(phoneCountry, phoneNational);
+    if (!phoneE164) {
+      setView({
+        kind: 'error',
+        message: 'Please enter a valid phone number for the selected country.',
+      });
+      return;
+    }
     setView({ kind: 'submitting' });
     try {
       const res = await fetch('/api/auth/send-magic-link', {
@@ -41,7 +55,7 @@ function SignupInner() {
         body: JSON.stringify({
           email: email.trim(),
           full_name: fullName.trim(),
-          phone: phone.trim(),
+          phone: phoneE164,
           next: '/dashboard',
           agency: agencySlug ?? undefined,
         }),
@@ -159,18 +173,32 @@ function SignupInner() {
           placeholder="you@example.com"
           className="wizard-focus block w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 transition-colors focus:border-slate-500"
         />
-        <input
-          type="tel"
-          required
-          autoComplete="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="Phone number"
-          className="wizard-focus block w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 transition-colors focus:border-slate-500"
-        />
+        <div className="flex gap-2">
+          <select
+            aria-label="Phone country"
+            value={phoneCountry}
+            onChange={(e) => setPhoneCountry(e.target.value)}
+            className="wizard-focus rounded-lg border border-slate-200 bg-white px-3 py-3.5 text-base text-slate-900 transition-colors focus:border-slate-500"
+          >
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label} (+{c.callingCode})
+              </option>
+            ))}
+          </select>
+          <input
+            type="tel"
+            required
+            autoComplete="tel-national"
+            value={phoneNational}
+            onChange={(e) => setPhoneNational(e.target.value)}
+            placeholder="Phone number"
+            className="wizard-focus block w-full rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 transition-colors focus:border-slate-500"
+          />
+        </div>
         <button
           type="submit"
-          disabled={submitting || !fullName.trim() || !email.trim() || !phone.trim()}
+          disabled={submitting || !fullName.trim() || !email.trim() || !phoneNational.trim()}
           className="wizard-pill w-full justify-center"
         >
           {submitting ? 'Sending…' : 'Create account'}

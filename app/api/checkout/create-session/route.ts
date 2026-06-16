@@ -9,17 +9,28 @@ import { getStripe } from '@/lib/stripe';
 // Body: { bot_id: string, promo_code?: string }
 //
 // Creates a Stripe Checkout Session for a recurring subscription tied to a
-// specific bot. Routes the funds via Stripe Connect when the bot's agency
-// has onboarded (other agencies); charges direct to platform for Macaws.
+// specific bot. Two routing modes, picked per-agency:
+//
+//   - DIRECT CHARGES (agency.use_direct_charges = true, onboarding complete):
+//     The session is created on the connected account (`stripeAccount` opt).
+//     The agency is the merchant of record. The agency's Connect account
+//     pays the Stripe processing fee out of its own revenue and refunds
+//     debit it naturally. Platform takes no application fee.
+//
+//   - DESTINATION CHARGES (everyone else, including legacy subs):
+//     Original behaviour. Customer pays the platform Stripe; full amount
+//     transferred to the connected account when one exists.
 //
 // Pricing: per-agency. Reads `client_price_pence` / `client_currency` from
-// the agency row and builds `price_data` inline against `STRIPE_PRODUCT_ID`.
-// Falls back to 9900 pence / GBP when the agency hasn't set a price.
+// the agency row. In direct-charge mode we use `product_data` inline so we
+// don't have to provision a Product on each connected account at onboarding
+// time — Stripe creates an ephemeral product on the fly. In destination
+// mode we still reference the shared platform Product via `STRIPE_PRODUCT_ID`.
 //
-// Promo codes: optional, agency-scoped. The coupon backing the promo code
-// must have `metadata.agency_id` matching this bot's agency, otherwise the
-// request is rejected. Stripe's free-form promo-code box on Checkout is
-// disabled (default) so cross-agency codes can't leak in via the UI.
+// Promo codes: optional, agency-scoped. In destination mode, agency
+// scoping is enforced via `metadata.agency_id` on the coupon. In direct
+// mode the coupon lives on the connected account, so the Connect-account
+// boundary is the scope — no extra metadata check needed.
 //
 // Returns: { url: string } — the Checkout URL to redirect the browser to.
 
@@ -41,14 +52,6 @@ export async function POST(request: Request) {
   const botId = body.bot_id?.trim();
   if (!botId) {
     return NextResponse.json({ error: 'bot_id is required' }, { status: 400 });
-  }
-
-  const productId = process.env.STRIPE_PRODUCT_ID;
-  if (!productId) {
-    return NextResponse.json(
-      { error: 'STRIPE_PRODUCT_ID is not configured on the server.' },
-      { status: 500 },
-    );
   }
 
   // Authenticate the user
@@ -85,12 +88,11 @@ export async function POST(request: Request) {
     );
   }
 
-  // Load the agency to determine routing (Connect vs platform direct) and
-  // per-agency pricing.
+  // Load the agency to determine routing mode and per-agency pricing.
   const { data: agency } = await service
     .from('agencies')
     .select(
-      'id, name, stripe_connect_account_id, stripe_connect_onboarding_complete, client_price_pence, client_currency',
+      'id, name, stripe_connect_account_id, stripe_connect_onboarding_complete, use_direct_charges, client_price_pence, client_currency',
     )
     .eq('id', bot.agency_id)
     .single();
@@ -98,8 +100,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Agency not found' }, { status: 404 });
   }
 
-  const useConnect =
+  // Mode selection. Both modes require Connect to be set up; direct mode
+  // additionally requires the feature flag. When neither is true, charge
+  // goes straight to the platform (used for Macaws itself and any agency
+  // that hasn't onboarded Connect yet).
+  const connectReady =
     !!agency.stripe_connect_account_id && agency.stripe_connect_onboarding_complete;
+  const useDirect = connectReady && agency.use_direct_charges;
+  const useDestination = connectReady && !agency.use_direct_charges;
+
+  // Direct mode creates Stripe objects ON the connected account by passing
+  // this as the second arg to every Stripe API call.
+  const stripeRequestOptions: { stripeAccount?: string } | undefined = useDirect
+    ? { stripeAccount: agency.stripe_connect_account_id! }
+    : undefined;
 
   const stripe = getStripe();
   const { origin } = new URL(request.url);
@@ -109,21 +123,27 @@ export async function POST(request: Request) {
   const unitAmount = agency.client_price_pence ?? 9900;
   const currency = (agency.client_currency ?? 'GBP').toLowerCase();
 
-  // Optional promo code — must be scoped to this agency via the backing
-  // coupon's `metadata.agency_id`. We resolve the promotion code on Stripe
-  // first so an invalid / cross-agency code is rejected before we ever open
-  // a Checkout session.
+  // Optional promo code. Lookup is scoped to wherever the coupons live:
+  //   - Direct mode → on the connected account (Connect-account isolation
+  //     means we don't need to re-check agency_id metadata; only that
+  //     agency's codes can show up here).
+  //   - Destination / platform mode → on the platform, and we still enforce
+  //     `metadata.agency_id` so codes can't leak across agencies that share
+  //     the platform Stripe.
   let promotionCodeId: string | null = null;
   const rawPromo = body.promo_code?.trim();
   if (rawPromo) {
     try {
-      const codes = await stripe.promotionCodes.list({
-        code: rawPromo,
-        active: true,
-        // SDK nests the coupon under `promotion.coupon`.
-        expand: ['data.promotion.coupon'],
-        limit: 1,
-      });
+      const codes = await stripe.promotionCodes.list(
+        {
+          code: rawPromo,
+          active: true,
+          // SDK nests the coupon under `promotion.coupon`.
+          expand: ['data.promotion.coupon'],
+          limit: 1,
+        },
+        stripeRequestOptions,
+      );
       const pc = codes.data[0];
       if (!pc) {
         return NextResponse.json(
@@ -140,13 +160,17 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      const couponAgencyId =
-        (rawCoupon.metadata as Record<string, string> | null | undefined)?.agency_id ?? null;
-      if (couponAgencyId !== agency.id) {
-        return NextResponse.json(
-          { error: 'This promo code isn’t valid for this workspace.' },
-          { status: 400 },
-        );
+      // Only enforce metadata-based agency scoping in destination/platform
+      // mode. Direct mode is already isolated by the Connect account boundary.
+      if (!useDirect) {
+        const couponAgencyId =
+          (rawCoupon.metadata as Record<string, string> | null | undefined)?.agency_id ?? null;
+        if (couponAgencyId !== agency.id) {
+          return NextResponse.json(
+            { error: 'This promo code isn’t valid for this workspace.' },
+            { status: 400 },
+          );
+        }
       }
       promotionCodeId = pc.id;
     } catch (e) {
@@ -158,66 +182,87 @@ export async function POST(request: Request) {
     }
   }
 
+  // Product source differs by mode:
+  //   - Direct mode: inline product_data — Stripe creates an ephemeral
+  //     product on the connected account so we never have to provision a
+  //     Stripe Product per agency.
+  //   - Destination/platform mode: keep referencing the shared platform
+  //     Product via STRIPE_PRODUCT_ID for backwards compat.
+  const priceDataCommon = {
+    currency,
+    recurring: { interval: 'month' as const },
+    unit_amount: unitAmount,
+  };
+  let priceData:
+    | (typeof priceDataCommon & { product: string })
+    | (typeof priceDataCommon & { product_data: { name: string } });
+  if (useDirect) {
+    priceData = {
+      ...priceDataCommon,
+      product_data: { name: 'Voice Builder receptionist' },
+    };
+  } else {
+    const productId = process.env.STRIPE_PRODUCT_ID;
+    if (!productId) {
+      return NextResponse.json(
+        { error: 'STRIPE_PRODUCT_ID is not configured on the server.' },
+        { status: 500 },
+      );
+    }
+    priceData = { ...priceDataCommon, product: productId };
+  }
+
   try {
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      // Inline price_data — per-agency unit_amount + currency on a shared
-      // platform Product. No need to maintain a Stripe Price per agency;
-      // agencies edit their price via /dashboard/settings and it takes
-      // effect on the next checkout.
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency,
-            product: productId,
-            recurring: { interval: 'month' },
-            unit_amount: unitAmount,
-          },
-        },
-      ],
-      customer_email: user.email ?? undefined,
-      // Metadata flows to the Subscription too, via subscription_data below.
-      metadata: {
-        bot_id: bot.id,
-        agency_id: agency.id,
-        user_id: user.id,
-      },
-      subscription_data: {
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: 'subscription',
+        line_items: [{ quantity: 1, price_data: priceData }],
+        customer_email: user.email ?? undefined,
+        // Metadata flows to the Subscription too, via subscription_data below.
+        // In direct mode the session, customer and subscription all live on
+        // the connected account — but metadata is platform-neutral and the
+        // webhook reads it the same way either way.
         metadata: {
           bot_id: bot.id,
           agency_id: agency.id,
           user_id: user.id,
         },
-        // Connect routing: send funds to the agency's Connect account, no
-        // platform fee. When agency has no Connect account (Macaws), money
-        // stays with the platform Stripe.
-        //
-        // `on_behalf_of` tells Stripe to treat the connected account as the
-        // merchant of record for the charge — drives the business name shown
-        // on Stripe Checkout, statement descriptors, and the customer receipt.
-        // Without it, the customer sees the platform brand (Macaws) even when
-        // funds route to the agency.
-        ...(useConnect
-          ? {
-              transfer_data: {
-                destination: agency.stripe_connect_account_id!,
-              },
-              application_fee_percent: 0,
-              on_behalf_of: agency.stripe_connect_account_id!,
-            }
-          : {}),
+        subscription_data: {
+          metadata: {
+            bot_id: bot.id,
+            agency_id: agency.id,
+            user_id: user.id,
+          },
+          // Destination mode only: route funds to the agency's Connect
+          // account with 0% platform fee. on_behalf_of makes the connected
+          // account the merchant of record on receipts/statement descriptors.
+          // In direct mode none of this applies — the connected account
+          // IS the merchant because the session itself lives on it.
+          ...(useDestination
+            ? {
+                transfer_data: {
+                  destination: agency.stripe_connect_account_id!,
+                },
+                application_fee_percent: 0,
+                on_behalf_of: agency.stripe_connect_account_id!,
+              }
+            : {}),
+        },
+        // Apply the validated promo (if any). Stripe rejects discounts +
+        // allow_promotion_codes together; we keep allow_promotion_codes off
+        // (default) so only server-validated codes can apply.
+        ...(promotionCodeId ? { discounts: [{ promotion_code: promotionCodeId }] } : {}),
+        // In direct mode the session lives on the connected account, so the
+        // return handler needs to know which account to scope its retrieve
+        // call to. We tack the account id onto the URL — Stripe doesn't pass
+        // it back automatically.
+        success_url: useDirect
+          ? `${origin}/api/checkout/return?session_id={CHECKOUT_SESSION_ID}&account=${agency.stripe_connect_account_id!}`
+          : `${origin}/api/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/bots/new/6?checkout=cancelled`,
       },
-      // Apply the validated agency-scoped promo (if any). Stripe rejects the
-      // combination of `discounts` + `allow_promotion_codes`, so we omit the
-      // latter — its default is false, meaning the free-form promo box is
-      // hidden on Checkout. Cross-agency leak is impossible because Stripe's
-      // own UI no longer accepts codes; only the server-validated `promo_code`
-      // request param can apply a discount.
-      ...(promotionCodeId ? { discounts: [{ promotion_code: promotionCodeId }] } : {}),
-      success_url: `${origin}/api/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/bots/new/6?checkout=cancelled`,
-    });
+      stripeRequestOptions,
+    );
 
     if (!session.url) {
       return NextResponse.json(

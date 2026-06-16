@@ -120,9 +120,15 @@ export async function POST(request: Request) {
         metadata: { agency_id: agency.id },
       });
       accountId = account.id;
+      // First-time Connect setup → default this agency to direct-charge mode.
+      // Existing agencies that already had a connect account stay on whatever
+      // their use_direct_charges flag was; we never silently flip a live one.
       await service
         .from('agencies')
-        .update({ stripe_connect_account_id: accountId })
+        .update({
+          stripe_connect_account_id: accountId,
+          use_direct_charges: true,
+        })
         .eq('id', agency.id);
     }
 

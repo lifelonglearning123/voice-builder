@@ -53,7 +53,17 @@ export async function POST(request: Request) {
   // present" (login) from "field present but blank" (which the form
   // prevents, but be defensive on the server side).
   const fullName = body.full_name?.trim() ?? '';
-  const phone = body.phone?.trim() ?? '';
+  let phone = body.phone?.trim() ?? '';
+  // Belt-and-braces: the signup form now sends E.164 (`+44…`). If anything
+  // arrives without a leading `+` (older client, direct API hit, etc.) we
+  // refuse to forward it to GHL — sending a bare national number would
+  // make GHL stamp it with the location's default country code, which is
+  // the bug we're fixing. Better to drop the phone than store the wrong
+  // international number.
+  if (phone && !/^\+[1-9]\d{5,14}$/.test(phone)) {
+    console.warn('[send-magic-link] non-E.164 phone rejected:', phone);
+    phone = '';
+  }
 
   // Resolve the agency this signup/login belongs to.
   const agency = await resolveAgency({

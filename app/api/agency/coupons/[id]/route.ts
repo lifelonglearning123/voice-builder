@@ -5,18 +5,27 @@ import {
 } from '@/lib/supabase/server';
 import { getStripe } from '@/lib/stripe';
 
-// DELETE /api/agency/coupons/[id]
+// DELETE /api/agency/coupons/[id]?agency_id=<uuid>
 //
-// Deletes a Stripe coupon by id. The caller must be owner/admin of the
-// agency stored in the coupon's `metadata.agency_id` — that's how we prevent
-// one agency from deleting another's coupons. Deleting the coupon also stops
-// its promotion codes from applying to new checkouts (Stripe handles this
-// automatically); existing subscriptions keep their discount.
+// Deletes a Stripe coupon by id. Authorisation flow:
+//   1. Caller passes ?agency_id=… for the agency they're acting as.
+//   2. We verify the caller is owner/admin of that agency.
+//   3. We resolve the agency's Stripe storage mode (direct vs platform)
+//      and target that account for the delete.
+//   4. In platform mode we additionally verify the coupon's
+//      metadata.agency_id matches — so one platform-tenant agency can't
+//      pass another's coupon id and nuke it. In direct mode this check is
+//      redundant because the coupon would 404 on the wrong connected
+//      account anyway.
+//
+// Deleting the coupon also stops its promotion codes from applying to new
+// checkouts (Stripe handles this automatically). Existing subscriptions
+// keep their discount.
 
 export const runtime = 'nodejs';
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: couponId } = await params;
@@ -24,25 +33,13 @@ export async function DELETE(
     return NextResponse.json({ error: 'coupon id required' }, { status: 400 });
   }
 
-  const stripe = getStripe();
-
-  // Retrieve the coupon first so we can check its agency_id metadata.
-  let agencyId: string | null = null;
-  try {
-    const coupon = await stripe.coupons.retrieve(couponId);
-    agencyId =
-      ((coupon.metadata ?? null) as Record<string, string> | null)?.agency_id ?? null;
-  } catch {
-    return NextResponse.json({ error: 'Coupon not found' }, { status: 404 });
-  }
+  const { searchParams } = new URL(request.url);
+  const agencyId = searchParams.get('agency_id')?.trim();
   if (!agencyId) {
-    return NextResponse.json(
-      { error: 'Coupon is not agency-scoped — refusing to delete.' },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: 'agency_id is required' }, { status: 400 });
   }
 
-  // Authorize: caller must be owner/admin of the agency on the coupon.
+  // Authorise the caller as owner/admin of the agency they say they own.
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -60,8 +57,44 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Resolve Stripe storage mode for this agency.
+  const { data: agency } = await service
+    .from('agencies')
+    .select(
+      'stripe_connect_account_id, stripe_connect_onboarding_complete, use_direct_charges',
+    )
+    .eq('id', agencyId)
+    .single();
+  const useDirect =
+    !!agency?.use_direct_charges &&
+    !!agency.stripe_connect_account_id &&
+    !!agency.stripe_connect_onboarding_complete;
+  const scope = useDirect
+    ? { stripeAccount: agency!.stripe_connect_account_id! }
+    : undefined;
+
+  const stripe = getStripe();
+
+  // Platform mode: verify the coupon belongs to the caller's agency before
+  // we delete it (defence against ID-guessing attacks across tenants).
+  if (!scope) {
+    try {
+      const coupon = await stripe.coupons.retrieve(couponId);
+      const couponAgencyId =
+        ((coupon.metadata ?? null) as Record<string, string> | null)?.agency_id ?? null;
+      if (couponAgencyId !== agencyId) {
+        return NextResponse.json(
+          { error: 'Coupon does not belong to this workspace.' },
+          { status: 403 },
+        );
+      }
+    } catch {
+      return NextResponse.json({ error: 'Coupon not found' }, { status: 404 });
+    }
+  }
+
   try {
-    await stripe.coupons.del(couponId);
+    await stripe.coupons.del(couponId, undefined, scope);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error('[coupons] delete failed:', e);
