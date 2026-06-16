@@ -218,6 +218,23 @@ export async function POST(request: Request) {
         mode: 'subscription',
         line_items: [{ quantity: 1, price_data: priceData }],
         customer_email: user.email ?? undefined,
+        // Direct-charge sessions live on the connected account, but Stripe
+        // Link saved cards live on the platform. If a customer has Link
+        // cards on file under the same email, Checkout dutifully offers
+        // them — then fails with "An unknown error occurred" when the
+        // customer clicks Subscribe, because a platform-scoped Link
+        // PaymentMethod can't be charged through a connected account.
+        //
+        // Restricting payment_method_types to ['card'] disables the Link
+        // wallet integration entirely; the customer enters a fresh card
+        // which gets attached to a new Customer on the connected account
+        // and works as expected. Apple Pay / Google Pay still work — they
+        // fall under 'card', not 'link'.
+        //
+        // Destination-mode sessions don't have this problem (the session
+        // lives on the platform Stripe, same account as the Link wallet),
+        // so we leave that path alone — Link there is a nice convenience.
+        ...(useDirect ? { payment_method_types: ['card' as const] } : {}),
         // Metadata flows to the Subscription too, via subscription_data below.
         // In direct mode the session, customer and subscription all live on
         // the connected account — but metadata is platform-neutral and the
@@ -273,9 +290,27 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url });
   } catch (e) {
-    console.error('[checkout/create-session] failed:', e);
+    // Surface the underlying Stripe error to the caller so the wizard
+    // shows something actionable instead of a generic "try again" wall.
+    // Stripe errors carry both `message` (human-readable) and `code` /
+    // `decline_code` / `param` — we expose message + code for now since
+    // "An unknown error occurred" in the UI was making debugging impossible.
+    console.error('[checkout/create-session] failed:', e, {
+      bot_id: bot.id,
+      agency_id: agency.id,
+      use_direct: useDirect,
+      use_destination: useDestination,
+      destination_account: agency.stripe_connect_account_id,
+    });
+    const stripeMessage =
+      e instanceof Error ? e.message : 'Unknown error from Stripe.';
+    const stripeCode = (e as { code?: string } | null)?.code;
     return NextResponse.json(
-      { error: 'Couldn’t create checkout session. Please try again.' },
+      {
+        error: stripeCode
+          ? `Checkout failed (${stripeCode}): ${stripeMessage}`
+          : `Checkout failed: ${stripeMessage}`,
+      },
       { status: 502 },
     );
   }

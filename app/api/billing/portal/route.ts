@@ -104,11 +104,19 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url });
   } catch (e) {
-    console.error('[billing/portal] failed:', e);
+    console.error('[billing/portal] failed:', e, {
+      bot_id: botId,
+      agency_id: bot.agency_id,
+      use_direct: useDirect,
+      stripe_account: stripeRequestOptions?.stripeAccount,
+    });
+    const stripeMessage = e instanceof Error ? e.message : 'Unknown error from Stripe.';
+    const stripeCode = (e as { code?: string } | null)?.code;
     return NextResponse.json(
       {
-        error:
-          'Couldn’t open the billing portal. Please try again or contact support.',
+        error: stripeCode
+          ? `Billing portal failed (${stripeCode}): ${stripeMessage}`
+          : `Billing portal failed: ${stripeMessage}`,
       },
       { status: 502 },
     );
