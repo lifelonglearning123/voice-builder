@@ -32,6 +32,11 @@ export interface SendEmailArgs {
   text: string;
   /** When set, attempt GHL delivery first; fall through to Resend on failure. */
   ghl?: GhlConfig | null;
+  /** Optional recipient profile. When delivering via GHL these write to the
+   *  upserted contact so the agency's CRM has a name/phone on the record,
+   *  not just an email. Ignored on Resend (which has no contact concept). */
+  contactName?: string;
+  contactPhone?: string;
 }
 
 export async function sendEmail(args: SendEmailArgs): Promise<void> {
@@ -45,6 +50,8 @@ export async function sendEmail(args: SendEmailArgs): Promise<void> {
         text: args.text,
         fromEmail: args.fromEmail,
         fromName: args.fromName,
+        contactName: args.contactName,
+        contactPhone: args.contactPhone,
       });
       return;
     } catch (e) {

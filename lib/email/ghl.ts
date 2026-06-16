@@ -31,24 +31,62 @@ export interface GhlSendArgs {
    *  location's default sending identity when omitted. */
   fromEmail?: string;
   fromName?: string;
+  /** Optional contact profile fields. When provided, written to the GHL
+   *  contact during the upsert so the contact card has more than an email
+   *  on it. Safe to omit — GHL keeps any existing values if we don't send
+   *  the field, so subsequent email-only sends won't wipe a name/phone
+   *  populated by an earlier signup. */
+  contactName?: string;
+  contactPhone?: string;
 }
 
 export async function sendEmailViaGhl(
   config: GhlConfig,
   args: GhlSendArgs,
 ): Promise<void> {
-  const contactId = await upsertContact(config, args.to);
+  const contactId = await upsertContact(config, {
+    email: args.to,
+    name: args.contactName,
+    phone: args.contactPhone,
+  });
   await sendMessage(config, contactId, args);
 }
 
-async function upsertContact(config: GhlConfig, email: string): Promise<string> {
+interface UpsertContactArgs {
+  email: string;
+  name?: string;
+  phone?: string;
+}
+
+// Tag stamped on every contact we touch — lets agencies filter / segment
+// Voice Builder leads inside GHL without having to guess from the contact's
+// source field. GHL merges tags on upsert (additive), so re-sending it on
+// later emails to the same contact is a no-op rather than a duplicate.
+const VOICE_BUILDER_TAG = 'voice-builder';
+
+async function upsertContact(
+  config: GhlConfig,
+  args: UpsertContactArgs,
+): Promise<string> {
+  const payload: Record<string, unknown> = {
+    locationId: config.locationId,
+    email: args.email,
+    tags: [VOICE_BUILDER_TAG],
+  };
+  if (args.name?.trim()) {
+    const { firstName, lastName } = splitName(args.name);
+    payload.name = args.name.trim();
+    if (firstName) payload.firstName = firstName;
+    if (lastName) payload.lastName = lastName;
+  }
+  if (args.phone?.trim()) {
+    payload.phone = args.phone.trim();
+  }
+
   const res = await fetch(`${GHL_BASE}/contacts/upsert`, {
     method: 'POST',
     headers: ghlHeaders(config.apiToken),
-    body: JSON.stringify({
-      locationId: config.locationId,
-      email,
-    }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -65,6 +103,12 @@ async function upsertContact(config: GhlConfig, email: string): Promise<string> 
     throw new Error('GHL upsert contact returned no id');
   }
   return id;
+}
+
+function splitName(full: string): { firstName: string; lastName: string } {
+  const parts = full.trim().split(/\s+/);
+  if (parts.length <= 1) return { firstName: parts[0] ?? '', lastName: '' };
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
 }
 
 async function sendMessage(

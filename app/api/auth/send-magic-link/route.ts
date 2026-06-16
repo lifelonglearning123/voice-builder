@@ -138,6 +138,12 @@ export async function POST(request: Request) {
         agency.ghl_location_id && agency.ghl_api_token
           ? { locationId: agency.ghl_location_id, apiToken: agency.ghl_api_token }
           : null,
+      // Signup-only — login requests don't send these. The first magic-link
+      // hit creates the GHL contact with the user's profile attached; later
+      // login emails for the same address upsert by email alone and GHL
+      // keeps the previously stored name/phone.
+      contactName: fullName || undefined,
+      contactPhone: phone || undefined,
     });
   } catch (e) {
     console.error('[send-magic-link] send failed:', e);
