@@ -115,7 +115,7 @@ function Footer({ agency }: { agency: MarketingAgency }) {
   const year = new Date().getFullYear();
   return (
     <footer className="border-t border-slate-900/[0.06] bg-white">
-      <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 md:grid-cols-4">
+      <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 md:grid-cols-5">
         <div className="md:col-span-2">
           <div className="flex items-center gap-2.5">
             {agency.logoUrl ? (
@@ -157,6 +157,15 @@ function Footer({ agency }: { agency: MarketingAgency }) {
           <ul className="mt-4 space-y-2 text-sm">
             <li><Link href={'/login' as never} className="text-slate-600 hover:text-slate-900">Sign in</Link></li>
             <li><Link href={'/signup' as never} className="text-slate-600 hover:text-slate-900">Get started</Link></li>
+          </ul>
+        </div>
+
+        <div>
+          <p className="font-mono-tight text-[11px] uppercase tracking-[0.18em] text-slate-400">
+            Legal
+          </p>
+          <ul className="mt-4 space-y-2 text-sm">
+            <li><Link href={'/privacy' as never} className="text-slate-600 hover:text-slate-900">Privacy policy</Link></li>
           </ul>
         </div>
       </div>
