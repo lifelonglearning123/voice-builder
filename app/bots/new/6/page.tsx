@@ -10,6 +10,7 @@ import { wizardStep } from '@/lib/wizard/steps.ts';
 import { Field, inputClass } from '@/components/wizard/Field.tsx';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import type { Bot } from '@/src/compile/types.ts';
+import { track } from '@/lib/analytics/track';
 
 const E164_RE = /^\+\d{8,15}$/;
 
@@ -79,6 +80,11 @@ export default function Step6Page() {
     if (status === 'idle' && !draft) router.replace('/bots/new');
     if (status === 'idle' && botStatus === 'live' && activate.kind === 'idle') router.replace('/dashboard');
   }, [draft, status, botStatus, activate.kind, router]);
+
+  useEffect(() => {
+    track('wizard_step_viewed', { step: 'phone', agency_id: agencyId, bot_id: botId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!botId) return;
@@ -258,6 +264,7 @@ export default function Step6Page() {
       await markActivated({ agent_id: agentId, llm_id: llmId });
       if (!draft.twilio_phone_e164) {
         await notifyWelcome(botId);
+        track('wizard_activated', { agency_id: agencyId, bot_id: botId, phone_linked: false });
         setActivate({ kind: 'done', agent_id: agentId, phone_linked: false });
         return;
       }
@@ -283,6 +290,7 @@ export default function Step6Page() {
         return;
       }
       await notifyWelcome(botId);
+      track('wizard_activated', { agency_id: agencyId, bot_id: botId, phone_linked: true });
       setActivate({ kind: 'done', agent_id: agentId, phone_linked: true });
     } catch (e) {
       setActivate({ kind: 'deploy_error', message: e instanceof Error ? e.message : 'Something went wrong. Please try again.' });
@@ -696,6 +704,7 @@ function CallNowBlock({ phone }: { phone: string }) {
   const [copied, setCopied] = useState(false);
 
   async function handleClick() {
+    track('wizard_test_call_initiated', { phone_e164: phone });
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(phone);

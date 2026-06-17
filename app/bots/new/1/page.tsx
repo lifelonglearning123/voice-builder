@@ -7,6 +7,7 @@ import { StepShell } from '@/components/wizard/StepShell.tsx';
 import { wizardStep } from '@/lib/wizard/steps.ts';
 import { Field, inputClass } from '@/components/wizard/Field.tsx';
 import type { WorkingHours } from '@/src/compile/types.ts';
+import { track } from '@/lib/analytics/track';
 
 const DAYS: Array<{ key: keyof WorkingHours; label: string }> = [
   { key: 'mon', label: 'Mon' },
@@ -49,7 +50,7 @@ const TIMEZONES: Array<{ value: string; label: string }> = [
 
 export default function Step1Page() {
   const router = useRouter();
-  const { draft, patch, status } = useWizard();
+  const { draft, patch, status, agencyId, botId } = useWizard();
 
   // If the wizard loaded but there's no draft, the user landed here directly
   // without going through the entry page — send them back to start.
@@ -58,6 +59,11 @@ export default function Step1Page() {
       router.replace('/bots/new');
     }
   }, [draft, status, router]);
+
+  useEffect(() => {
+    track('wizard_step_viewed', { step: 'basics', agency_id: agencyId, bot_id: botId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!draft) {
     return (

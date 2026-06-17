@@ -6,6 +6,7 @@ import { useWizard } from '@/lib/wizard/context.tsx';
 import { StepShell } from '@/components/wizard/StepShell.tsx';
 import { wizardStep } from '@/lib/wizard/steps.ts';
 import { Field, inputClass } from '@/components/wizard/Field.tsx';
+import { track } from '@/lib/analytics/track';
 
 interface RetellVoice {
   voice_id: string;
@@ -26,7 +27,12 @@ const ALLOWED_ACCENTS = new Set(['american', 'british', 'english']);
 
 export default function Step2Page() {
   const router = useRouter();
-  const { draft, patch, status } = useWizard();
+  const { draft, patch, status, agencyId, botId } = useWizard();
+
+  useEffect(() => {
+    track('wizard_step_viewed', { step: 'voice', agency_id: agencyId, bot_id: botId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [voices, setVoices] = useState<RetellVoice[] | null>(null);
   const [voicesError, setVoicesError] = useState<string | null>(null);

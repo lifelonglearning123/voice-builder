@@ -1,10 +1,12 @@
 // Per-agency-branded transactional emails for milestones in the SMB lifecycle.
 //
-// Three so far:
+// Four so far:
 //   1. Welcome — sent to the SMB after first successful bot activation
 //   2. Payment failed — sent to the SMB when a renewal charge fails
 //   3. Client went live (agency notification) — sent to agency owners/admins
 //      so they can hand the client over to Voice Monitor
+//   4. Drop-off recovery — sent at 24h / 72h / 7d to SMBs who started the
+//      wizard but never activated their bot
 //
 // All use the agency's `from_email` + `from_name` + `brand_color` from
 // vb.agencies, so they feel native to the agency's brand rather than the
@@ -92,6 +94,32 @@ export async function sendAgencyClientWentLiveEmail(args: AgencyClientWentLiveAr
   });
 }
 
+export type DropOffStage = '24h' | '72h' | '7d';
+
+interface DropOffArgs {
+  to: string;
+  agency: AgencyBrand;
+  stage: DropOffStage;
+  /** SMB business name if they typed one, otherwise null — we soften the
+   *  copy if we don't know what to call them yet. */
+  businessName: string | null;
+  /** Deep link back into the wizard, ideally /bots/new?bot=<id>. */
+  resumeUrl: string;
+}
+
+export async function sendDropOffEmail(args: DropOffArgs): Promise<void> {
+  const subject = dropOffSubject(args.stage, args.businessName);
+  await sendEmail({
+    to: args.to,
+    fromEmail: args.agency.from_email,
+    fromName: args.agency.from_name,
+    subject,
+    html: dropOffHtml(args),
+    text: dropOffText(args),
+    ghl: ghlConfig(args.agency),
+  });
+}
+
 /* ---------------------------------------------------------------------------
  * Templates
  * ------------------------------------------------------------------------- */
@@ -155,6 +183,70 @@ function agencyClientWentLiveHtml({ agency, businessName, clientEmail, phoneE164
 function agencyClientWentLiveText({ agency, businessName, clientEmail, phoneE164, dashboardUrl }: AgencyClientWentLiveArgs): string {
   const phoneLine = phoneE164 ? `\nReceptionist number: ${phoneE164}` : '';
   return `Action needed\n\n${businessName} just went live.\n\nReach out within one business day to hand them over to Voice Monitor, so they can see every call and refine the AI receptionist over time.\n\nClient: ${businessName}\nContact: ${clientEmail}${phoneLine}\n\nOpen dashboard: ${dashboardUrl}\n\nYou're receiving this because you're an owner or admin of ${agency.from_name}.`;
+}
+
+/* ---------- Drop-off recovery templates -------------------------------- */
+
+function dropOffSubject(stage: DropOffStage, businessName: string | null): string {
+  const name = businessName?.trim();
+  switch (stage) {
+    case '24h':
+      return name
+        ? `Pick up where you left off with ${name}`
+        : `Your AI receptionist is half-built`;
+    case '72h':
+      return name
+        ? `${name}'s receptionist is still waiting`
+        : `Finish setting up your AI receptionist`;
+    case '7d':
+      return name
+        ? `One last nudge — ${name} is ready to go live`
+        : `One last nudge — finish your AI receptionist`;
+  }
+}
+
+function dropOffCopy(stage: DropOffStage, businessName: string | null) {
+  const subject = businessName?.trim() || 'Your AI receptionist';
+  switch (stage) {
+    case '24h':
+      return {
+        eyebrow: 'You started something good',
+        headline: `${subject} is half-built.`,
+        body: `You started setting up your AI receptionist yesterday. Everything you entered is saved — pick up exactly where you left off and you'll be live in a few more minutes.`,
+        cta: 'Continue building',
+      };
+    case '72h':
+      return {
+        eyebrow: 'Still here when you are',
+        headline: `${subject} is waiting for you.`,
+        body: `Your draft is still saved. Most businesses finish setup in about 10 minutes — and once you're live, your receptionist starts answering every call, day or night.`,
+        cta: 'Finish setup',
+      };
+    case '7d':
+      return {
+        eyebrow: 'One last nudge',
+        headline: `Ready to bring ${subject} live?`,
+        body: `Your draft is still here, ready when you are. If now isn't the right time we won't email again — but if you'd like to finish, it's about 10 minutes from where you left off.`,
+        cta: 'Pick up where I left off',
+      };
+  }
+}
+
+function dropOffHtml(args: DropOffArgs): string {
+  const accent = sanitizeHex(args.agency.brand_color) ?? '#0f172a';
+  const copy = dropOffCopy(args.stage, args.businessName);
+  return wrapHtml(
+    `<div style="font-size:13px;letter-spacing:0.18em;color:#94a3b8;text-transform:uppercase;font-weight:500;">${escapeHtml(args.agency.from_name)}</div>
+     <div style="padding-top:14px;font-size:22px;line-height:1.3;font-weight:600;letter-spacing:-0.02em;color:${accent};">${escapeHtml(copy.headline)}</div>
+     <div style="padding-top:14px;font-size:15px;line-height:1.55;color:#475569;">${escapeHtml(copy.body)}</div>
+     <div style="padding-top:28px;"><a href="${escapeAttr(args.resumeUrl)}" style="display:inline-block;background:${accent};color:#ffffff;text-decoration:none;padding:14px 26px;border-radius:9999px;font-weight:500;font-size:15px;">${escapeHtml(copy.cta)} &rarr;</a></div>
+     <div style="padding-top:24px;font-size:12px;color:#94a3b8;line-height:1.55;">If you'd rather not hear from us again, just reply with the word &ldquo;unsubscribe&rdquo; and we'll stop.</div>`,
+  );
+}
+
+function dropOffText(args: DropOffArgs): string {
+  const copy = dropOffCopy(args.stage, args.businessName);
+  return `${copy.headline}\n\n${copy.body}\n\n${copy.cta}: ${args.resumeUrl}\n\nIf you'd rather not hear from us again, just reply with the word "unsubscribe" and we'll stop.\n\n— ${args.agency.from_name}`;
 }
 
 function wrapHtml(body: string): string {

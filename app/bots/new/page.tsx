@@ -7,6 +7,7 @@ import { useWizard } from '@/lib/wizard/context.tsx';
 import { wizardStep } from '@/lib/wizard/steps.ts';
 import type { PrefilledBot } from '@/src/prefill/types.ts';
 import { getRegionalCopy, getRegionFromEnv } from '@/lib/marketing/regional';
+import { track } from '@/lib/analytics/track';
 
 type IndustryGroup = { category: string; items: string[] };
 
@@ -137,7 +138,13 @@ const { step: STEP_NUMBER, total: STEP_TOTAL } = wizardStep('intro');
 
 export default function NewBotPage() {
   const router = useRouter();
-  const { setDraft, draft, botId, status } = useWizard();
+  const { setDraft, draft, botId, agencyId, status } = useWizard();
+
+  useEffect(() => {
+    track('wizard_step_viewed', { step: 'intro', agency_id: agencyId, bot_id: botId });
+    // Fire once on mount; further re-tracks would duplicate the funnel step.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [description, setDescription] = useState('');
   const [industry, setIndustry] = useState('');
@@ -227,6 +234,7 @@ export default function NewBotPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       const payload = data as PrefillResponse;
+      track('wizard_generate_completed', { agency_id: agencyId, has_website: !!website.trim(), has_knowledge: !!knowledgeFile });
       setDraft(payload.bot);
       clearStageTimers();
       // Hold for a beat so the final stage message has time to register
