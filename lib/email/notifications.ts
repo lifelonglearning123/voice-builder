@@ -1,10 +1,12 @@
 // Per-agency-branded transactional emails for milestones in the SMB lifecycle.
 //
-// Two so far:
-//   1. Welcome — sent after first successful bot activation
-//   2. Payment failed — sent when a renewal charge fails
+// Three so far:
+//   1. Welcome — sent to the SMB after first successful bot activation
+//   2. Payment failed — sent to the SMB when a renewal charge fails
+//   3. Client went live (agency notification) — sent to agency owners/admins
+//      so they can hand the client over to Voice Monitor
 //
-// Both use the agency's `from_email` + `from_name` + `brand_color` from
+// All use the agency's `from_email` + `from_name` + `brand_color` from
 // vb.agencies, so they feel native to the agency's brand rather than the
 // platform.
 
@@ -65,6 +67,31 @@ export async function sendPaymentFailedEmail(args: PaymentFailedArgs): Promise<v
   });
 }
 
+interface AgencyClientWentLiveArgs {
+  to: string;
+  agency: AgencyBrand;
+  /** SMB business display name. */
+  businessName: string;
+  /** SMB owner's email (so the agency can reach out directly). */
+  clientEmail: string;
+  /** SMB receptionist phone number, if linked. */
+  phoneE164: string | null;
+  /** Deep link into the agency dashboard's clients view. */
+  dashboardUrl: string;
+}
+
+export async function sendAgencyClientWentLiveEmail(args: AgencyClientWentLiveArgs): Promise<void> {
+  await sendEmail({
+    to: args.to,
+    fromEmail: args.agency.from_email,
+    fromName: args.agency.from_name,
+    subject: `Action needed: ${args.businessName} just went live — Voice Monitor handoff pending`,
+    html: agencyClientWentLiveHtml(args),
+    text: agencyClientWentLiveText(args),
+    ghl: ghlConfig(args.agency),
+  });
+}
+
 /* ---------------------------------------------------------------------------
  * Templates
  * ------------------------------------------------------------------------- */
@@ -74,18 +101,21 @@ function welcomeHtml({ agency, businessName, phoneE164 }: WelcomeArgs): string {
   const callLine = phoneE164
     ? `<p style="margin-top:18px;font-size:15px;line-height:1.55;color:#0f172a;"><strong>Test it now:</strong> call <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">${escapeHtml(phoneE164)}</span>.</p>`
     : '';
+  const voiceMonitorLine = `<p style="margin-top:18px;font-size:15px;line-height:1.55;color:#475569;"><strong style="color:#0f172a;">What happens next:</strong> ${escapeHtml(agency.from_name)} will be in touch within one business day to give you access to <strong style="color:#0f172a;">Voice Monitor</strong> &mdash; where you&rsquo;ll see every call and improve your AI receptionist over time.</p>`;
   return wrapHtml(
     `<div style="font-size:13px;letter-spacing:0.18em;color:#94a3b8;text-transform:uppercase;font-weight:500;">${escapeHtml(agency.from_name)}</div>
      <div style="padding-top:14px;font-size:22px;line-height:1.3;font-weight:600;letter-spacing:-0.02em;color:${accent};">${escapeHtml(businessName)} is live.</div>
      <div style="padding-top:14px;font-size:15px;line-height:1.55;color:#475569;">Your AI receptionist is taking calls right now. A summary lands in your inbox after every call.</div>
      ${callLine}
+     ${voiceMonitorLine}
      <div style="padding-top:24px;font-size:12px;color:#94a3b8;line-height:1.55;">If you have any questions, just reply to this email.</div>`,
   );
 }
 
 function welcomeText({ agency, businessName, phoneE164 }: WelcomeArgs): string {
   const callLine = phoneE164 ? `\n\nTest it now: call ${phoneE164}.` : '';
-  return `${businessName} is live.\n\nYour AI receptionist is taking calls right now. A summary lands in your inbox after every call.${callLine}\n\nIf you have any questions, just reply to this email.\n\n— ${agency.from_name}`;
+  const voiceMonitorLine = `\n\nWhat happens next: ${agency.from_name} will be in touch within one business day to give you access to Voice Monitor — where you'll see every call and improve your AI receptionist over time.`;
+  return `${businessName} is live.\n\nYour AI receptionist is taking calls right now. A summary lands in your inbox after every call.${callLine}${voiceMonitorLine}\n\nIf you have any questions, just reply to this email.\n\n— ${agency.from_name}`;
 }
 
 function paymentFailedHtml({ agency, businessName, manageBillingUrl }: PaymentFailedArgs): string {
@@ -101,6 +131,30 @@ function paymentFailedHtml({ agency, businessName, manageBillingUrl }: PaymentFa
 
 function paymentFailedText({ agency, businessName, manageBillingUrl }: PaymentFailedArgs): string {
   return `Payment didn't go through\n\nWe couldn't take this month's payment for ${businessName}. To keep your AI receptionist taking calls, please update your card:\n\n${manageBillingUrl}\n\nWe'll keep your receptionist running for a few days while you fix this. After that it'll pause until payment goes through.\n\n— ${agency.from_name}`;
+}
+
+function agencyClientWentLiveHtml({ agency, businessName, clientEmail, phoneE164, dashboardUrl }: AgencyClientWentLiveArgs): string {
+  const accent = sanitizeHex(agency.brand_color) ?? '#0f172a';
+  const phoneRow = phoneE164
+    ? `<tr><td style="padding:8px 0;color:#94a3b8;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">Receptionist number</td><td style="padding:8px 0;color:#0f172a;font-size:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">${escapeHtml(phoneE164)}</td></tr>`
+    : '';
+  return wrapHtml(
+    `<div style="font-size:13px;letter-spacing:0.18em;color:#94a3b8;text-transform:uppercase;font-weight:500;">Action needed</div>
+     <div style="padding-top:14px;font-size:22px;line-height:1.3;font-weight:600;letter-spacing:-0.02em;color:${accent};">${escapeHtml(businessName)} just went live.</div>
+     <div style="padding-top:14px;font-size:15px;line-height:1.55;color:#475569;">Reach out within one business day to hand them over to <strong style="color:#0f172a;">Voice Monitor</strong>, so they can see every call and refine the AI receptionist over time.</div>
+     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:22px;width:100%;border-top:1px solid #e2e8f0;">
+       <tr><td style="padding:8px 0;color:#94a3b8;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">Client</td><td style="padding:8px 0;color:#0f172a;font-size:14px;">${escapeHtml(businessName)}</td></tr>
+       <tr><td style="padding:8px 0;color:#94a3b8;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">Contact</td><td style="padding:8px 0;color:#0f172a;font-size:14px;"><a href="mailto:${escapeAttr(clientEmail)}" style="color:#0f172a;text-decoration:underline;">${escapeHtml(clientEmail)}</a></td></tr>
+       ${phoneRow}
+     </table>
+     <div style="padding-top:28px;"><a href="${escapeAttr(dashboardUrl)}" style="display:inline-block;background:${accent};color:#ffffff;text-decoration:none;padding:14px 26px;border-radius:9999px;font-weight:500;font-size:15px;">Open dashboard &rarr;</a></div>
+     <div style="padding-top:24px;font-size:12px;color:#94a3b8;line-height:1.55;">You&rsquo;re receiving this because you&rsquo;re an owner or admin of ${escapeHtml(agency.from_name)}.</div>`,
+  );
+}
+
+function agencyClientWentLiveText({ agency, businessName, clientEmail, phoneE164, dashboardUrl }: AgencyClientWentLiveArgs): string {
+  const phoneLine = phoneE164 ? `\nReceptionist number: ${phoneE164}` : '';
+  return `Action needed\n\n${businessName} just went live.\n\nReach out within one business day to hand them over to Voice Monitor, so they can see every call and refine the AI receptionist over time.\n\nClient: ${businessName}\nContact: ${clientEmail}${phoneLine}\n\nOpen dashboard: ${dashboardUrl}\n\nYou're receiving this because you're an owner or admin of ${agency.from_name}.`;
 }
 
 function wrapHtml(body: string): string {

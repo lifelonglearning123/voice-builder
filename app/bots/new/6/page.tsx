@@ -73,6 +73,7 @@ export default function Step6Page() {
   const [subStatus, setSubStatus] = useState<string | null>(null);
   const [checkoutBanner, setCheckoutBanner] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
+  const [agencyName, setAgencyName] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'idle' && !draft) router.replace('/bots/new');
@@ -91,6 +92,21 @@ export default function Step6Page() {
       setSubStatus(data?.client_subscription_status ?? 'inactive');
     })();
   }, [botId]);
+
+  // Fetch the agency name so the celebration screen can credit them in
+  // the Voice Monitor heads-up line. Falls back gracefully if unavailable.
+  useEffect(() => {
+    if (!agencyId) return;
+    const supabase = createSupabaseBrowserClient();
+    (async () => {
+      const { data } = await supabase
+        .from('agencies')
+        .select('name')
+        .eq('id', agencyId)
+        .maybeSingle();
+      if (data?.name) setAgencyName(data.name);
+    })();
+  }, [agencyId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -315,6 +331,7 @@ export default function Step6Page() {
           businessName={draft.business_name}
           phone={draft.twilio_phone_e164}
           phoneLinked={(activate as { phone_linked: boolean }).phone_linked}
+          agencyName={agencyName}
         />
       ) : isWorking ? (
         <ActivatingState
@@ -586,11 +603,14 @@ function CelebrationState({
   businessName,
   phone,
   phoneLinked,
+  agencyName,
 }: {
   businessName: string;
   phone: string | null;
   phoneLinked: boolean;
+  agencyName: string | null;
 }) {
+  const showCallCta = phoneLinked && !!phone;
   return (
     <section className="flex flex-col items-center pt-8 text-center md:pt-12">
       <div className="relative flex h-72 w-72 items-center justify-center">
@@ -634,24 +654,107 @@ function CelebrationState({
         <br />
         {businessName} is live.
       </h2>
-      <p
-        className="mt-4 max-w-md text-base leading-relaxed text-slate-500 wizard-fade-up"
-        style={{ animationDelay: '860ms' }}
-      >
-        {phoneLinked && phone
-          ? `Try calling ${phone} right now to hear your AI receptionist in action.`
-          : 'Your AI receptionist is ready. Add a phone number to start taking calls.'}
-      </p>
+
+      {showCallCta ? (
+        <CallNowBlock phone={phone!} />
+      ) : (
+        <p
+          className="mt-4 max-w-md text-base leading-relaxed text-slate-500 wizard-fade-up"
+          style={{ animationDelay: '860ms' }}
+        >
+          Your AI receptionist is ready. Add a phone number to start taking calls.
+        </p>
+      )}
+
+      <VoiceMonitorHeadsUp agencyName={agencyName} />
+
       <div
-        className="mt-10 flex flex-col items-center gap-3 sm:flex-row wizard-fade-up"
-        style={{ animationDelay: '940ms' }}
+        className="mt-8 wizard-fade-up"
+        style={{ animationDelay: '1100ms' }}
       >
-        <Link href={'/dashboard' as never} className="wizard-pill">
-          Go to dashboard
-          <span aria-hidden="true">→</span>
+        <Link
+          href={'/dashboard' as never}
+          className="text-sm font-medium text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline"
+        >
+          I&apos;ll try it later — go to dashboard →
         </Link>
       </div>
     </section>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Big "call your receptionist now" block — phone number is the hero.
+ *
+ * On mobile, tapping the button fires the OS dialler via `tel:`. On desktop,
+ * the click also copies the number to the clipboard so the user can grab
+ * their phone and dial. We show a transient "Copied" confirmation so the
+ * action feels responsive even when the tel: link does nothing visible.
+ * ------------------------------------------------------------------------- */
+
+function CallNowBlock({ phone }: { phone: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleClick() {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(phone);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2200);
+      }
+    } catch {
+      // Clipboard may be blocked (e.g. insecure context) — silent fallback.
+    }
+  }
+
+  return (
+    <div
+      className="mt-6 flex w-full max-w-lg flex-col items-center wizard-fade-up"
+      style={{ animationDelay: '860ms' }}
+    >
+      <p className="font-mono-tight text-[11px] tracking-[0.18em] uppercase text-slate-400">
+        Try it right now
+      </p>
+      <p
+        className="mt-2 select-all font-mono text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl"
+        aria-label="Receptionist phone number"
+      >
+        {phone}
+      </p>
+      <div className="mt-5 flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
+        <a
+          href={`tel:${phone}`}
+          onClick={handleClick}
+          className="wizard-pill"
+        >
+          {copied ? 'Number copied' : 'Call your receptionist now'}
+          <span aria-hidden="true">{copied ? '✓' : '→'}</span>
+        </a>
+      </div>
+      <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-500">
+        Try asking when you&apos;re open, or to book an appointment.
+      </p>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Voice Monitor heads-up — one calm line, no CTA. The agency reaches out
+ * separately; the SMB just needs to know it's coming.
+ * ------------------------------------------------------------------------- */
+
+function VoiceMonitorHeadsUp({ agencyName }: { agencyName: string | null }) {
+  const subject = agencyName?.trim() || 'Your agency';
+  return (
+    <p
+      className="mt-10 max-w-lg text-sm leading-relaxed text-slate-500 wizard-fade-up"
+      style={{ animationDelay: '1020ms' }}
+    >
+      <span className="font-medium text-slate-700">What happens next: </span>
+      {subject} will be in touch within one business day to give you access to{' '}
+      <span className="font-medium text-slate-700">Voice Monitor</span> — where
+      you&apos;ll see every call and improve your AI receptionist over time.
+    </p>
   );
 }
 
