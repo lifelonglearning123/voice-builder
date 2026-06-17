@@ -8,13 +8,15 @@ import {
 // Body (JSON):
 //   {
 //     agency_id: string,
-//     name?: string,
 //     brand_logo_url?: string | null,
 //     brand_color?: string | null,         // hex, "#RRGGBB"
-//     custom_domain?: string | null,        // bare host, no protocol
 //     client_price_pence?: number | null,
 //     client_currency?: string | null       // 'GBP' | 'USD' | ...
 //   }
+//
+// `name` and `custom_domain` are accepted in the body for backwards
+// compatibility but silently ignored — those fields are platform-locked
+// (managed via DEFAULT_BRAND_NAME and DNS routing respectively).
 //
 // Updates the agency's branding. Owner / admin role required. Empty strings
 // are treated as null (clearing the field).
@@ -22,7 +24,6 @@ import {
 export const runtime = 'nodejs';
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
-const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i;
 const URL_RE = /^https?:\/\/[^\s]+$/i;
 const ALLOWED_CURRENCIES = new Set(['GBP', 'USD', 'EUR', 'CAD', 'AUD']);
 
@@ -72,16 +73,11 @@ export async function POST(req: Request) {
   // An empty string clears the value; undefined leaves it untouched.
   const update: Record<string, unknown> = {};
 
-  if (body.name !== undefined) {
-    const v = body.name.trim();
-    if (!v) {
-      return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 });
-    }
-    if (v.length > 80) {
-      return NextResponse.json({ error: 'Name must be 80 characters or fewer' }, { status: 400 });
-    }
-    update.name = v;
-  }
+  // Agency name and custom domain are platform-locked: the deployment owns
+  // them (set via DEFAULT_BRAND_NAME and DNS routing respectively), so the
+  // self-service form can't change them. We silently drop the fields rather
+  // than 400 so an older client that still sends them keeps working.
+  // body.name and body.custom_domain are intentionally ignored here.
 
   if (body.brand_logo_url !== undefined) {
     const v = body.brand_logo_url?.trim();
@@ -114,25 +110,8 @@ export async function POST(req: Request) {
     }
   }
 
-  if (body.custom_domain !== undefined) {
-    const v = body.custom_domain?.trim().toLowerCase();
-    if (!v) {
-      update.custom_domain = null;
-      // Clearing the domain implicitly un-verifies it.
-      update.custom_domain_verified = false;
-    } else {
-      const clean = v.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
-      if (!DOMAIN_RE.test(clean)) {
-        return NextResponse.json(
-          { error: 'Custom domain must be a bare hostname like voice-builder.acme.com' },
-          { status: 400 },
-        );
-      }
-      update.custom_domain = clean;
-      // Changing the domain re-triggers verification.
-      update.custom_domain_verified = false;
-    }
-  }
+  // body.custom_domain is intentionally ignored — see the locked-fields note
+  // above. DNS routing is platform-managed.
 
   if (body.client_price_pence !== undefined) {
     if (body.client_price_pence === null) {

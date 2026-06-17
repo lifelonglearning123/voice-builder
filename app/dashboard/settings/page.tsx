@@ -145,7 +145,11 @@ export default async function AgencySettingsPage({
               <BrandingForm
                 agencyId={agency.id}
                 initial={{
-                  name: agency.name,
+                  // Agency name is locked at the deployment level — show the
+                  // env override that the marketing site actually renders,
+                  // falling back to the DB row only when no override is set.
+                  // Matches the precedence in lib/agency/marketing.ts.
+                  name: process.env.DEFAULT_BRAND_NAME?.trim() || agency.name,
                   brand_logo_url: agency.brand_logo_url,
                   brand_color: agency.brand_color,
                   custom_domain: agency.custom_domain,

@@ -18,10 +18,13 @@ interface BrandingFormProps {
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'CAD', 'AUD'] as const;
 
 export function BrandingForm({ agencyId, initial }: BrandingFormProps) {
-  const [name, setName] = useState(initial.name);
+  // Agency name and custom domain are locked at the platform level — they
+  // reflect what's saved in the DB but the form never lets the user change
+  // them. Kept as plain values (not state) so the preview still renders.
+  const name = initial.name;
+  const domain = initial.custom_domain ?? '';
   const [logoUrl, setLogoUrl] = useState(initial.brand_logo_url ?? '');
   const [color, setColor] = useState(initial.brand_color ?? '#0071e3');
-  const [domain, setDomain] = useState(initial.custom_domain ?? '');
   const [priceText, setPriceText] = useState(
     initial.client_price_pence != null ? (initial.client_price_pence / 100).toFixed(2) : '',
   );
@@ -52,10 +55,10 @@ export function BrandingForm({ agencyId, initial }: BrandingFormProps) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         agency_id: agencyId,
-        name,
+        // name and custom_domain are locked at the platform level —
+        // intentionally omitted from the payload.
         brand_logo_url: logoUrl,
         brand_color: color,
-        custom_domain: domain,
         client_price_pence: pricePence,
         client_currency: currency,
       }),
@@ -83,14 +86,17 @@ export function BrandingForm({ agencyId, initial }: BrandingFormProps) {
   return (
     <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-[1.4fr,1fr]">
       <div className="space-y-6">
-        <Field label="Agency name" hint="Shown in the top nav and footer of your marketing site.">
+        <Field
+          label="Agency name"
+          locked
+          hint="Locked — set by the platform admin at the deployment level."
+        >
           <input
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={80}
-            required
-            className={inputClass}
+            readOnly
+            disabled
+            className={lockedInputClass}
           />
         </Field>
 
@@ -132,19 +138,20 @@ export function BrandingForm({ agencyId, initial }: BrandingFormProps) {
 
         <Field
           label="Custom domain"
-          optional
+          locked
           hint={
             initial.custom_domain && initial.custom_domain_verified
-              ? 'Verified. Visitors at this domain see your branding automatically.'
-              : 'After saving, point this domain at the platform via DNS. Verification is manual until the domain resolves and is approved.'
+              ? 'Locked — set by the platform admin. Verified and live.'
+              : 'Locked — set by the platform admin at the deployment level.'
           }
         >
           <input
             type="text"
             placeholder="voice-builder.your-agency.com"
             value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-            className={inputClass}
+            readOnly
+            disabled
+            className={lockedInputClass}
           />
         </Field>
 
@@ -300,15 +307,20 @@ function currencySymbol(currency: string): string {
 const inputClass =
   'w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:outline-none focus:ring-4 focus:ring-slate-900/[0.04]';
 
+const lockedInputClass =
+  'w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 placeholder:text-slate-400 cursor-not-allowed';
+
 function Field({
   label,
   hint,
   optional,
+  locked,
   children,
 }: {
   label: string;
   hint?: string;
   optional?: boolean;
+  locked?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -317,6 +329,20 @@ function Field({
         {label}
         {optional && (
           <span className="font-normal text-[11px] text-slate-400">Optional</span>
+        )}
+        {locked && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium tracking-tight text-slate-500">
+            <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path
+                d="M3.5 5V3.5a2.5 2.5 0 015 0V5M2.5 5h7v5.5h-7V5z"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Locked
+          </span>
         )}
       </span>
       <div className="mt-1.5">{children}</div>
