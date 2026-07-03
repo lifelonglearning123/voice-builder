@@ -30,6 +30,10 @@ export interface AgencyRow {
   client_currency: string | null;
   from_email: string | null;
   from_name: string | null;
+  /** Pre-designated owner, set by the operator when inserting the agency
+   *  row. Post-signin promotes a user signing in with this (magic-link
+   *  verified) email straight to role 'owner' in vb.agency_members. */
+  owner_email: string | null;
   ghl_location_id: string | null;
   ghl_api_token: string | null;
 }

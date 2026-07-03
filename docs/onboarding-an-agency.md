@@ -100,7 +100,8 @@ INSERT INTO vb.agencies (
   from_email,
   from_name,
   brand_color,
-  stripe_country
+  stripe_country,
+  owner_email
 )
 VALUES (
   'Acme Digital',                           -- agency name
@@ -110,7 +111,8 @@ VALUES (
   'noreply@acmedigital.com',                -- from_email (domain must be verified in Resend — see step 2)
   'Acme Digital',                           -- from_name (shown as sender label)
   '#0071e3',                                -- brand colour (hex; optional)
-  'GB'                                      -- ISO-3166 alpha-2; locks Stripe Connect country
+  'GB',                                     -- ISO-3166 alpha-2; locks Stripe Connect country
+  'owner@acmedigital.com'                   -- owner email — first sign-in with this email is auto-promoted to role 'owner'
 )
 ON CONFLICT (slug) DO NOTHING;
 ```
@@ -122,12 +124,20 @@ ON CONFLICT (slug) DO NOTHING;
 > reason to set it `false` is to deactivate an existing agency (see
 > *Removing an agency* below).
 
-## 4b. Promote the owner once they've signed in
+## 4b. Owner signs in — promotion is automatic
 
-Now tell the owner to hit `https://<their-custom-domain>/signup` and
-complete the magic-link flow. That creates their row in `auth.users` and
-auto-provisions them as a *client* of the agency. To upgrade them to
-*owner*:
+Tell the owner to hit `https://<their-custom-domain>/signup` and complete
+the magic-link flow. Because their email matches `owner_email` on the
+agency row, the post-signin route provisions them directly as role
+*owner* — no manual step, they land straight in the agency dashboard.
+
+This also self-heals: if the owner signed up *before* `owner_email` was
+set (they'd have landed as a client), setting the column and having them
+sign in again upgrades their membership in place.
+
+**Manual fallback** — only needed if the owner ends up signing in with a
+different address than the one on the row (fix the row instead where
+possible), or for agencies predating migration 013:
 
 ```sql
 INSERT INTO vb.agency_members (agency_id, user_id, role)
@@ -139,8 +149,6 @@ ON CONFLICT (agency_id, user_id) DO UPDATE SET role = EXCLUDED.role;
 ```
 
 (The `DO UPDATE` overrides the auto-provisioned client membership.)
-
-Adjust the values per the agency you're onboarding.
 
 ---
 

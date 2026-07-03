@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     console.warn('[post-signin] no user found from token or cookie');
     return NextResponse.json({ ok: true, provisioned: false, reason: 'no_user' });
   }
-  const { id: userId, fullName, phone } = resolved;
+  const { id: userId, email, fullName, phone } = resolved;
 
   try {
     const service = createSupabaseServiceClient();
@@ -47,6 +47,41 @@ export async function POST(request: Request) {
         default_slug: process.env.DEFAULT_AGENCY_SLUG,
       });
       return NextResponse.json({ ok: true, provisioned: false, reason: 'no_agency' });
+    }
+
+    // Pre-designated owner? Provision (or upgrade an earlier auto-provisioned
+    // client membership) straight to role 'owner'. This runs BEFORE the
+    // existing-member short-circuit so an owner who signed up before
+    // owner_email was set still gets promoted on their next sign-in. Safe:
+    // magic-link sign-in proved control of the email, and owner_email is only
+    // ever set by the operator. Any stale agency_clients row is left in place
+    // — staff membership takes precedence in the dashboard.
+    const ownerEmail = agency.owner_email?.trim().toLowerCase();
+    if (ownerEmail && email && email.toLowerCase() === ownerEmail) {
+      const { error } = await service
+        .from('agency_members')
+        .upsert(
+          { agency_id: agency.id, user_id: userId, role: 'owner' },
+          { onConflict: 'agency_id,user_id' },
+        );
+      if (error) {
+        console.error('[post-signin] owner promotion failed:', error);
+        return NextResponse.json(
+          { ok: false, provisioned: false, reason: 'owner_promotion_failed', detail: error.message },
+          { status: 500 },
+        );
+      }
+      console.log('[post-signin] provisioned as owner', {
+        user_id: userId,
+        agency_id: agency.id,
+        agency_slug: agency.slug,
+      });
+      return NextResponse.json({
+        ok: true,
+        provisioned: true,
+        role: 'owner',
+        agency_id: agency.id,
+      });
     }
 
     // Already a staff member or client of THIS agency? Don't auto-provision.
@@ -128,6 +163,7 @@ export async function POST(request: Request) {
 
 interface ResolvedUser {
   id: string;
+  email: string;
   fullName: string;
   phone: string;
 }
@@ -154,10 +190,15 @@ async function resolveUser(request: Request): Promise<ResolvedUser | null> {
   return user ? pickProfile(user) : null;
 }
 
-function pickProfile(user: { id: string; user_metadata?: Record<string, unknown> | null }): ResolvedUser {
+function pickProfile(user: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+}): ResolvedUser {
   const meta = user.user_metadata ?? {};
   return {
     id: user.id,
+    email: user.email?.trim() ?? '',
     fullName: typeof meta.full_name === 'string' ? meta.full_name.trim() : '',
     phone: typeof meta.phone === 'string' ? meta.phone.trim() : '',
   };
