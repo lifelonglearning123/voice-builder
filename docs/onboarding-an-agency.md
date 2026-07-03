@@ -79,13 +79,19 @@ agencies. Only the Redirect URLs list grows as agencies join.
 
 ---
 
-## 4. Insert the agency row + owner membership
+## 4a. Insert the agency row (do this FIRST, before anyone signs in)
 
-After the agency owner has signed in at least once (so a row exists in
-`auth.users`), run in Supabase SQL Editor:
+The agency row must exist **before** the owner or any client visits the
+custom domain — `resolveAgency` (`lib/agency/resolve.ts`) matches the
+incoming Host against `vb.agencies.custom_domain` AND
+`custom_domain_verified = true`. Without that row, every signup attempt
+returns:
+
+> *We couldn't identify which workspace you're signing in to. Please contact support.*
+
+Run in Supabase SQL Editor:
 
 ```sql
--- 4a. Create the agency
 INSERT INTO vb.agencies (
   name,
   slug,
@@ -99,23 +105,40 @@ INSERT INTO vb.agencies (
 VALUES (
   'Acme Digital',                           -- agency name
   'acme',                                   -- slug
-  'voice-builder.acmedigital.com',          -- custom domain
-  true,                                     -- flip once Vercel + DNS confirm
-  'noreply@acmedigital.com',                -- from_email
-  'Acme Digital',                           -- from_name
+  'voice-builder.acmedigital.com',          -- custom domain (exact host the client will visit — no scheme, no path)
+  true,                                     -- ⚠ THIS IS THE GATE. Must be true or signup fails silently.
+  'noreply@acmedigital.com',                -- from_email (domain must be verified in Resend — see step 2)
+  'Acme Digital',                           -- from_name (shown as sender label)
   '#0071e3',                                -- brand colour (hex; optional)
   'GB'                                      -- ISO-3166 alpha-2; locks Stripe Connect country
 )
 ON CONFLICT (slug) DO NOTHING;
+```
 
--- 4b. Add the owner as agency_member
+> **About `custom_domain_verified`:** despite the name, *nothing in the
+> code verifies DNS or SSL*. It's a pure manual on/off switch for the
+> operator. The column defaults to `false`, so if you omit it from the
+> INSERT, the agency is dead-on-arrival. Set it to `true` here. The only
+> reason to set it `false` is to deactivate an existing agency (see
+> *Removing an agency* below).
+
+## 4b. Promote the owner once they've signed in
+
+Now tell the owner to hit `https://<their-custom-domain>/signup` and
+complete the magic-link flow. That creates their row in `auth.users` and
+auto-provisions them as a *client* of the agency. To upgrade them to
+*owner*:
+
+```sql
 INSERT INTO vb.agency_members (agency_id, user_id, role)
 SELECT
   (SELECT id FROM vb.agencies WHERE slug = 'acme'),
-  (SELECT id FROM auth.users WHERE email = 'owner@acmedigital.com'),
+  (SELECT id FROM auth.users  WHERE email = 'owner@acmedigital.com'),
   'owner'
-ON CONFLICT (agency_id, user_id) DO NOTHING;
+ON CONFLICT (agency_id, user_id) DO UPDATE SET role = EXCLUDED.role;
 ```
+
+(The `DO UPDATE` overrides the auto-provisioned client membership.)
 
 Adjust the values per the agency you're onboarding.
 
@@ -173,6 +196,35 @@ To confirm the agency is wired correctly, do an end-to-end:
 If any of those are wrong, paste the failing step back to the engineering
 team — most issues are DNS propagation (give it longer) or a typo in the
 `vb.agencies` row.
+
+---
+
+## Diagnosing "We couldn't identify which workspace…" errors
+
+This error fires from `app/api/auth/send-magic-link/route.ts` whenever
+`resolveAgency` returns null. Run the diagnostic script against the
+*exact* URL the client tried:
+
+```bash
+node --use-system-ca --experimental-strip-types \
+  scripts/diagnose-agency-host.ts https://voice-builder.acmedigital.com
+```
+
+It replays the three resolution branches (verified host match → query
+slug → `DEFAULT_AGENCY_SLUG` env fallback) and prints which one would
+have matched, plus near-miss rows for typos (apex vs `www`, subdomain
+mismatch, wrong TLD). It also warns if a row resolves but `from_email`
+or `from_name` is null, because that triggers the *next* error
+(*"Sign-in email isn't configured for this workspace yet"*).
+
+Most common causes in order of frequency:
+
+1. The agency row was inserted with `custom_domain_verified = false`
+   (or the column was omitted, defaulting to false). Fix:
+   `UPDATE vb.agencies SET custom_domain_verified = true WHERE slug = '<slug>';`
+2. The `custom_domain` value doesn't exactly match the host the client
+   typed (e.g. row stores apex but client visits `www.`, or vice versa).
+3. The row was never inserted — step 4a was skipped.
 
 ---
 

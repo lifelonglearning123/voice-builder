@@ -207,31 +207,49 @@ export async function POST(req: Request) {
   log.push({ step: 'add_origination_uri', ok: true, detail: ensureOrigin.note });
 
   // ---------------------------------------------------------------------------
-  // 4. Ensure the phone number is attached to the trunk
+  // 4. Attach number to the trunk AND blank any legacy webhook handlers
+  //
+  // PATCH the IncomingPhoneNumber directly (not POST /Trunks/{sid}/PhoneNumbers)
+  // so we can set TrunkSid + clear VoiceUrl/VoiceFallbackUrl/VoiceApplicationSid/
+  // StatusCallback in one round-trip. Numbers that were previously owned by
+  // GoHighLevel, a Studio Flow, or any other webhook-based handler keep their
+  // voice_url pointing at the old endpoint even after being moved to a trunk —
+  // which silently hijacks inbound calls. Wiping all four fields here forces
+  // the trunk to be the sole inbound handler.
   // ---------------------------------------------------------------------------
-  if (numberRecord.trunk_sid !== trunkSid) {
-    const attachRes = await fetch(`${TWILIO_TRUNKING}/Trunks/${trunkSid}/PhoneNumbers`, {
+  const needsAttach = numberRecord.trunk_sid !== trunkSid;
+  const attachRes = await fetch(
+    `${TWILIO_API}/Accounts/${sid}/IncomingPhoneNumbers/${phoneNumberSid}.json`,
+    {
       method: 'POST',
       headers: {
         Authorization: twilioAuth,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({ PhoneNumberSid: phoneNumberSid }).toString(),
-    });
-    if (!attachRes.ok) {
-      const detail = await attachRes.text().catch(() => '');
-      return fail(
-        'attach_phone_number',
-        `Twilio number attach returned ${attachRes.status}`,
-        detail,
-        log,
-        { trunk_sid: trunkSid },
-      );
-    }
-    log.push({ step: 'attach_phone_number', ok: true });
-  } else {
-    log.push({ step: 'attach_phone_number', ok: true, detail: 'already attached' });
+      body: new URLSearchParams({
+        TrunkSid: trunkSid,
+        VoiceUrl: '',
+        VoiceFallbackUrl: '',
+        VoiceApplicationSid: '',
+        StatusCallback: '',
+      }).toString(),
+    },
+  );
+  if (!attachRes.ok) {
+    const detail = await attachRes.text().catch(() => '');
+    return fail(
+      needsAttach ? 'attach_phone_number' : 'clear_voice_url',
+      `Twilio number PATCH returned ${attachRes.status}`,
+      detail,
+      log,
+      { trunk_sid: trunkSid },
+    );
   }
+  log.push({
+    step: 'attach_phone_number',
+    ok: true,
+    detail: needsAttach ? 'attached + cleared voice_url' : 'already attached, cleared voice_url',
+  });
 
   // ---------------------------------------------------------------------------
   // 5. Register / update the number in Retell
@@ -435,11 +453,14 @@ async function importOrUpdateRetellNumber(args: {
   const detail = await importRes.text().catch(() => '');
 
   // If the number is already imported, switch to update-phone-number which
-  // patches the inbound_agents binding.
+  // patches the inbound_agents binding. Retell's wording varies across
+  // versions ("already imported", "Phone number already exists.",
+  // "phone_number_exists") so match loosely.
   const alreadyImported =
     importRes.status === 400 &&
-    /already.*import/i.test(detail) ||
-    /phone_number.*exists/i.test(detail);
+    (/already.*import/i.test(detail) ||
+      /phone[_ ]number.*(exists|imported)/i.test(detail) ||
+      /already\s+exists/i.test(detail));
 
   if (!alreadyImported) {
     return {

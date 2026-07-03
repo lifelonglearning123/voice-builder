@@ -92,8 +92,13 @@ export async function getMarketingAgency(opts?: {
     logoUrl: overrides.logoUrl ?? row.brand_logo_url,
     brandColor:
       overrides.brandColor ?? normaliseHex(row.brand_color) ?? FALLBACK.brandColor,
-    pricePence: overrides.pricePence ?? row.client_price_pence ?? FALLBACK.pricePence,
-    currency: (overrides.currency ?? row.client_currency ?? FALLBACK.currency).toUpperCase(),
+    // Price/currency: the agency's saved value must win over the
+    // DEFAULT_BRAND_* env vars — checkout charges client_price_pence
+    // straight from the DB, so displaying the env price would show a
+    // different number than Stripe bills. Env is a fallback for agencies
+    // that haven't set a price yet.
+    pricePence: row.client_price_pence ?? overrides.pricePence ?? FALLBACK.pricePence,
+    currency: (row.client_currency ?? overrides.currency ?? FALLBACK.currency).toUpperCase(),
     isFallback: false,
     marketingCountry,
     marketingCopy,
